@@ -1,11 +1,19 @@
 import { useState, useMemo } from "react"
-import { ArrowLeft, ChevronRight, ChevronDown } from "lucide-react"
+import { type ColumnDef } from "@tanstack/react-table"
+import { ChevronRight, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   FULL_AUDIT_ROWS, PATTERNS, NAV_TREE, DEEP_PANELS,
   VERDICT_LABEL, VERDICT_COLOR,
   type Verdict,
 } from "@/data"
+import { PageHeader } from "@/components/page-header"
+import { TldrCard } from "@/components/tldr-card"
+import { Callout } from "@/components/callout"
+import { DataTable } from "@/components/data-table"
+import { DataSources } from "@/components/data-sources"
+import { PageFooter } from "@/components/page-footer"
+import { type ColumnFiltersState } from "@tanstack/react-table"
 
 type TabId = "full" | "patterns" | "verkada" | "mock" | "gmaps-deep"
 
@@ -27,18 +35,50 @@ function VerdictBadge({ verdict }: { verdict: Verdict }) {
 
 // ─── Tab 1 ───────────────────────────────────────────────────────────────────
 
+const AUDIT_COLUMNS: ColumnDef<typeof FULL_AUDIT_ROWS[0], unknown>[] = [
+  {
+    accessorKey: "gmaps",
+    header: "Google Maps surface",
+    cell: ({ getValue }) => (
+      <span className="text-muted-foreground text-xs">{getValue() as string}</span>
+    ),
+  },
+  {
+    accessorKey: "verkada",
+    header: "Verkada Maps 2.0 equivalent",
+    cell: ({ getValue }) => <span className="text-sm">{getValue() as string}</span>,
+  },
+  {
+    accessorKey: "verdict",
+    header: "Verdict",
+    cell: ({ getValue }) => <VerdictBadge verdict={getValue() as Verdict} />,
+    filterFn: (row, _id, filterValue) =>
+      filterValue === "all" || row.original.verdict === filterValue,
+  },
+  {
+    accessorKey: "rationale",
+    header: "Rationale",
+    enableSorting: false,
+    cell: ({ getValue }) => (
+      <span className="text-muted-foreground text-xs leading-relaxed">{getValue() as string}</span>
+    ),
+  },
+]
+
 function TabFull() {
   const [filter, setFilter] = useState<Verdict | "all">("all")
-  const rows = filter === "all" ? FULL_AUDIT_ROWS : FULL_AUDIT_ROWS.filter(r => r.verdict === filter)
   const counts = { adopt: 0, adapt: 0, reject: 0, new: 0 } as Record<Verdict, number>
   FULL_AUDIT_ROWS.forEach(r => counts[r.verdict]++)
 
+  const externalFilter: ColumnFiltersState = filter === "all"
+    ? []
+    : [{ id: "verdict", value: filter }]
+
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 p-4 text-sm text-sky-300">
-        <span className="font-semibold">What this is: </span>
+      <Callout variant="info" title="What this is">
         Every Google Maps left-sidebar surface mapped 1:1 to a Verkada Maps 2.0 equivalent. Verdict tells you whether to lift the pattern as-is, adapt it, drop it, or recognize it as Verkada-specific net-new.
-      </div>
+      </Callout>
 
       <div className="flex flex-wrap gap-3">
         {(["all", "adopt", "adapt", "reject", "new"] as const).map(v => (
@@ -47,7 +87,9 @@ function TabFull() {
             onClick={() => setFilter(v)}
             className={cn(
               "rounded-full border px-3.5 py-1 text-xs font-medium transition-colors",
-              filter === v ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:border-foreground/50",
+              filter === v
+                ? "bg-foreground text-background border-foreground"
+                : "border-border text-muted-foreground hover:border-foreground/50",
             )}
           >
             {v === "all" ? `All (${FULL_AUDIT_ROWS.length})` : `${VERDICT_LABEL[v]} (${counts[v]})`}
@@ -64,28 +106,13 @@ function TabFull() {
         ))}
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-card">
-              <th className="p-3 text-left font-medium text-muted-foreground w-[24%]">Google Maps surface</th>
-              <th className="p-3 text-left font-medium text-muted-foreground w-[24%]">Verkada Maps 2.0 equivalent</th>
-              <th className="p-3 text-left font-medium text-muted-foreground w-[12%]">Verdict</th>
-              <th className="p-3 text-left font-medium text-muted-foreground">Rationale</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={i} className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors">
-                <td className="p-3 align-top text-muted-foreground">{r.gmaps}</td>
-                <td className="p-3 align-top">{r.verkada}</td>
-                <td className="p-3 align-top"><VerdictBadge verdict={r.verdict} /></td>
-                <td className="p-3 align-top text-muted-foreground text-xs leading-relaxed">{r.rationale}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={AUDIT_COLUMNS}
+        data={FULL_AUDIT_ROWS}
+        externalFilter={externalFilter}
+        showSearch
+        searchPlaceholder="Search surfaces, verdicts, rationale…"
+      />
     </div>
   )
 }
@@ -105,10 +132,9 @@ function TabPatterns() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 p-4 text-sm text-sky-300">
-        <span className="font-semibold">What this is: </span>
+      <Callout variant="info" title="What this is">
         Reusable UX patterns underneath the Google Maps IA, lifted out of surface-specific context. Each has a Verkada application, priority, and the panels it applies to. Build P0 patterns first — they compound across the entire product.
-      </div>
+      </Callout>
 
       <div className="grid grid-cols-3 gap-3">
         {[{ label: "P0 patterns", value: p0, cls: PRIORITY_COLOR.P0 }, { label: "P1 patterns", value: p1, cls: PRIORITY_COLOR.P1 }, { label: "P2 patterns", value: 0, cls: PRIORITY_COLOR.P2 }].map(s => (
@@ -260,10 +286,9 @@ function TabVerkada() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 p-4 text-sm text-sky-300">
-        <span className="font-semibold">What this is: </span>
+      <Callout variant="info" title="What this is">
         The complete proposed information architecture for Verkada Maps 2.0, derived from the Google Maps audit. Indentation = hierarchy depth. Click any node with children to collapse/expand.
-      </div>
+      </Callout>
       <div className="text-xs text-muted-foreground flex flex-wrap gap-2">
         {Object.entries(KIND_COLOR).map(([kind, cls]) => (
           <span key={kind} className={cn("rounded border px-2 py-0.5", cls)}>{kind}</span>
@@ -477,10 +502,9 @@ function TabMock() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-300">
-        <span className="font-semibold">Static wireframe preview. </span>
+      <Callout variant="warning" title="Static wireframe preview">
         The original canvas had a fully interactive 4,700-line prototype. This is a fidelity-accurate static rendering of the 6 key variants. Full port in progress.
-      </div>
+      </Callout>
       <div className="flex flex-wrap gap-2">
         {MOCK_VARIANTS.map(v => (
           <button
@@ -525,6 +549,7 @@ function TabGMapsDeep() {
 
       <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 p-5">
         <div className="text-xs font-semibold text-sky-300 uppercase tracking-wider mb-3">5 things to remember</div>
+
         <ol className="space-y-2">
           {HEADLINES.map((h, i) => (
             <li key={i} className="flex gap-3 text-sm text-sky-200/80">
@@ -572,8 +597,8 @@ function TabGMapsDeep() {
               </div>
             </div>
             {p.flag && (
-              <div className="mx-4 mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-300">
-                <span className="font-semibold">Note: </span>{p.flag}
+              <div className="mx-4 mb-4">
+                <Callout variant="warning" title="Note">{p.flag}</Callout>
               </div>
             )}
           </div>
@@ -635,26 +660,27 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div
-        aria-hidden
-        className="fixed inset-x-0 top-0 h-64 -z-10 opacity-30 pointer-events-none"
-        style={{ background: "radial-gradient(ellipse 80% 60% at 15% 0%, oklch(0.55 0.18 230 / 0.7), transparent), radial-gradient(ellipse 60% 50% at 85% 0%, oklch(0.6 0.18 160 / 0.5), transparent)" }}
-      />
-
       <main className="mx-auto max-w-6xl px-4 md:px-6 py-10">
-        <a href="https://ankush-rustagi.github.io/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8">
-          <ArrowLeft className="size-4" />Back to index
-        </a>
+        <PageHeader
+          type="Navigation Audit"
+          title={<>Google Maps → Verkada Maps 2.0<br /><span className="text-muted-foreground">Navigation Audit</span></>}
+          subtitle="Surface-by-surface crosswalk of Google Maps navigation patterns against the proposed Verkada Maps 2.0 information architecture."
+          createdDate="May 15, 2026"
+          modifiedDate="May 16, 2026"
+          stats={[
+            { value: FULL_AUDIT_ROWS.length, label: "surfaces audited" },
+            { value: PATTERNS.length, label: "reusable patterns" },
+          ]}
+          gradient="radial-gradient(ellipse 80% 60% at 15% 0%, oklch(0.55 0.18 230 / 0.7), transparent), radial-gradient(ellipse 60% 50% at 85% 0%, oklch(0.6 0.18 160 / 0.5), transparent)"
+        />
 
-        <header className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight leading-tight mb-2">
-            Google Maps → Verkada Maps 2.0<br />
-            <span className="text-muted-foreground">Navigation Audit</span>
-          </h1>
-          <p className="text-muted-foreground max-w-2xl">
-            Surface-by-surface crosswalk of Google Maps navigation patterns against the proposed Verkada Maps 2.0 information architecture. Canvas built 2026-05-15.
-          </p>
-        </header>
+        <TldrCard items={[
+          "Google Maps has 24 distinct left-sidebar surfaces. Verkada adopts 9 as-is, adapts 6, skips 6, and adds 3 net-new.",
+          "The top P0 UX patterns to carry over: contextual place detail panel, layered data-layer toggle, and grouped search autocomplete.",
+          "Verkada-first IA flips Google's content hierarchy: Locations and Collections lead, not recents and saved places.",
+          "Search should add per-result-type icons — our results (cameras, floors, locations) are more heterogeneous than Google's.",
+          "File-creates-Place is a primary onboarding moment and should be prominently surfaced, not buried.",
+        ]} />
 
         <DictionaryAnchor />
 
@@ -680,9 +706,17 @@ export default function App() {
         {tab === "mock" && <TabMock />}
         {tab === "gmaps-deep" && <TabGMapsDeep />}
 
-        <footer className="mt-20 pt-6 border-t border-border text-xs text-muted-foreground">
-          Ankush Rustagi · Verkada Product · Canvas built 2026-05-15
-        </footer>
+        <DataSources
+          sources={[
+            { label: "Google Maps (live re-audit)", description: "5 panels audited live in May 2026. 3 of 5 sign-in gated — public surfaces only analyzed." },
+            { label: "Verkada Maps 2.0 PRD", description: "Internal product requirements and design artifacts. IA derived from PRD v0.4." },
+            { label: "Verkada Design System (VDS)", description: "Component naming and hierarchy conventions used to map Google patterns to Verkada equivalents." },
+          ]}
+          methodology="Each Google Maps surface was manually tested and categorized as Adopt / Adapt / Reject / New. Patterns were extracted by grouping common behaviors across surfaces."
+          asOf="May 2026"
+        />
+
+        <PageFooter builtDate="2026-05-15" />
       </main>
     </div>
   )
