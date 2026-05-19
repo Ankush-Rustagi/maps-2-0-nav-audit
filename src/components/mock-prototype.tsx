@@ -1622,75 +1622,585 @@ function FloatingPlaceCard({
 }
 
 // ============================================================================
-// Editor overlays
+// Editor overlays (modeled on apps/site-planner/src/components/editor/ui/)
+// - EditorToolbelt mirrors ProductMenu: vertical column of category buttons
+//   with a slide-out tile panel. Categories cover the full set of editor
+//   actions (Devices, Architecture, Annotations, Layouts, Measure,
+//   Share & Permissions, plus Pointer at the top and Help at the bottom).
+// - EditorSelectionAside mirrors RightFloatingAside: collapsible right panel
+//   showing BOM when nothing is selected, or a marker detail when a marker
+//   is picked.
+// - EditorTopBar shows the Editor scope: Place breadcrumb + Undo/Redo +
+//   Save status + Exit. Scope is always visible.
+// - HotkeysModal opens from the Help button (YouTube "?" pattern).
 // ============================================================================
 
-function FloatingEditorToolbar({ onExit }: { onExit: () => void }) {
+type ToolbeltCategoryId =
+  | "pointer"
+  | "devices"
+  | "architecture"
+  | "annotations"
+  | "layouts"
+  | "measure"
+  | "share"
+  | "help"
+
+type ToolbeltTile = {
+  id: string
+  name: string
+  detail: string
+  variants?: string[]
+}
+
+type ToolbeltCategory = {
+  id: ToolbeltCategoryId
+  label: string
+  glyph: string
+  group: "top" | "main" | "bottom"
+  description: string
+  tiles: ToolbeltTile[]
+}
+
+const TOOLBELT_CATEGORIES: ToolbeltCategory[] = [
+  {
+    id: "pointer",
+    label: "Select",
+    glyph: "↖",
+    group: "top",
+    description: "Pointer / multi-select. Click markers to inspect. Shift-click to extend selection.",
+    tiles: [],
+  },
+  {
+    id: "devices",
+    label: "Devices",
+    glyph: "◉",
+    group: "main",
+    description: "Plot Verkada hardware. Drag a tile onto the map or click then click again to stamp.",
+    tiles: [
+      { id: "cam", name: "Cameras", detail: "Indoor + outdoor", variants: ["CD52", "CD42", "CD32", "CB52", "CY52"] },
+      { id: "door", name: "Doors", detail: "Access controlled", variants: ["AC42", "AC62", "AC72"] },
+      { id: "access", name: "Access readers", detail: "Card + mobile", variants: ["AD32", "AD33", "AD34"] },
+      { id: "sensor", name: "Sensors", detail: "Motion, environment", variants: ["SV11", "SV23", "SV25"] },
+      { id: "intercom", name: "Intercoms", detail: "TD camera + audio", variants: ["TD52"] },
+      { id: "speaker", name: "Speakers", detail: "Public address", variants: ["BS11"] },
+      { id: "alarm", name: "Alarms", detail: "Panic, glassbreak", variants: ["BX11", "BX12"] },
+    ],
+  },
+  {
+    id: "architecture",
+    label: "Architecture",
+    glyph: "▢",
+    group: "main",
+    description: "Draw the building shell so plotted devices snap to real geometry.",
+    tiles: [
+      { id: "wall", name: "Wall", detail: "Click two points; drag to extend" },
+      { id: "doorway", name: "Doorway", detail: "Snaps to wall midpoints" },
+      { id: "window", name: "Window", detail: "Drag across a wall to slot" },
+      { id: "elevator", name: "Elevator", detail: "Multi-floor connector" },
+      { id: "stairs", name: "Stairs", detail: "Multi-floor connector" },
+      { id: "boundary", name: "Boundary", detail: "Outdoor / site perimeter" },
+    ],
+  },
+  {
+    id: "annotations",
+    label: "Annotations",
+    glyph: "❒",
+    group: "main",
+    description: "Non-Verkada notes for context: labels, sticky notes, scoped regions.",
+    tiles: [
+      { id: "label", name: "Text label", detail: "Plain text on the map" },
+      { id: "note", name: "Sticky note", detail: "Multi-line note with author + timestamp" },
+      { id: "region", name: "Region", detail: "Colored polygon for zones (e.g. \u201cback of house\u201d)" },
+      { id: "arrow", name: "Arrow / callout", detail: "Pointer + label combo" },
+      { id: "pin", name: "Pin", detail: "Non-Verkada pin (e.g. \u201ckey under planter\u201d)" },
+    ],
+  },
+  {
+    id: "layouts",
+    label: "Layouts",
+    glyph: "▥",
+    group: "main",
+    description: "Manage the floorplan PDFs attached to this Place. Align, replace, detach.",
+    tiles: [
+      { id: "place", name: "Place layout", detail: "Drop a PDF / DWG / PNG onto the map" },
+      { id: "align", name: "Align", detail: "Drag corners to match real-world geometry" },
+      { id: "replace", name: "Replace", detail: "Swap the file behind this layout" },
+      { id: "detach", name: "Detach", detail: "Remove the layout but keep markers" },
+      { id: "version", name: "Version history", detail: "All prior aligned layouts for this Place" },
+    ],
+  },
+  {
+    id: "measure",
+    label: "Measure",
+    glyph: "✚",
+    group: "main",
+    description: "Drawing tools for distance, area, and coverage simulation.",
+    tiles: [
+      { id: "distance", name: "Distance", detail: "Two-point ruler with snap" },
+      { id: "area", name: "Area", detail: "Polygon area + perimeter readout" },
+      { id: "coverage", name: "Coverage simulator", detail: "Project what a planned camera would see" },
+    ],
+  },
+  {
+    id: "share",
+    label: "Share &amp; Permissions",
+    glyph: "⤴",
+    group: "main",
+    description: "Share this Place, manage roles, audit who has viewed or edited.",
+    tiles: [
+      { id: "share", name: "Share link", detail: "Internal-only link; viewer or editor" },
+      { id: "perms", name: "Permissions", detail: "Inherited from Site. Override per-Place rarely" },
+      { id: "audit", name: "Audit log", detail: "Who viewed, who edited, when" },
+      { id: "publish", name: "Publish revision", detail: "Snapshot the current layout for distribution" },
+    ],
+  },
+  {
+    id: "help",
+    label: "Help &amp; Hotkeys",
+    glyph: "?",
+    group: "bottom",
+    description: "Hotkey reference + documentation links. ? from anywhere opens this.",
+    tiles: [],
+  },
+]
+
+function EditorToolbelt({
+  active, onPick, onOpenHelp,
+}: {
+  active: ToolbeltCategoryId
+  onPick: (id: ToolbeltCategoryId) => void
+  onOpenHelp: () => void
+}) {
+  const activeCat = TOOLBELT_CATEGORIES.find(c => c.id === active)
+  const slideOpen = !!activeCat && activeCat.tiles.length > 0
+
+  const renderButton = (cat: ToolbeltCategory) => {
+    const isActive = active === cat.id
+    return (
+      <div key={cat.id} className="relative group/btn">
+        <button
+          onClick={() => {
+            if (cat.id === "help") {
+              onOpenHelp()
+              return
+            }
+            onPick(cat.id)
+          }}
+          title={cat.label.replace(/&amp;/g, "&")}
+          className={cn(
+            "size-11 rounded-full flex items-center justify-center text-lg transition-colors",
+            isActive
+              ? "bg-sky-500 text-white shadow-sm shadow-sky-500/30"
+              : "bg-transparent text-foreground/80 hover:bg-muted/60",
+          )}
+        >
+          <span className="leading-none">{cat.glyph}</span>
+        </button>
+        {/* Tooltip when not selected */}
+        {!isActive && (
+          <div
+            className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 rounded-md bg-card border border-border text-[10px] font-medium whitespace-nowrap shadow-md opacity-0 -translate-x-1 transition-all duration-100 group-hover/btn:opacity-100 group-hover/btn:translate-x-0 z-[1]"
+          >
+            {cat.label.replace(/&amp;/g, "&")}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
-    <div className="absolute top-3.5 left-1/2 -translate-x-1/2 z-30 bg-card/95 border border-border rounded-lg p-1.5 flex items-center gap-1.5">
-      <Pill size="sm" active tone="info">Editor</Pill>
-      <div className="h-4 w-px bg-border/60" />
-      <Pill size="sm" active>Select</Pill>
-      <Pill size="sm">Wall</Pill>
-      <Pill size="sm">Door</Pill>
-      <Pill size="sm">Camera</Pill>
-      <Pill size="sm">Sensor</Pill>
-      <Pill size="sm">Label</Pill>
-      <div className="h-4 w-px bg-border/60" />
-      <Pill size="sm">Align</Pill>
-      <Pill size="sm">Snap: on</Pill>
-      <div className="h-4 w-px bg-border/60" />
-      <Pill size="sm" onClick={onExit}>Exit editor</Pill>
+    <div className="absolute z-30 flex" style={{ left: 14, top: "50%", transform: "translateY(-50%)" }}>
+      {/* Vertical button column */}
+      <div className="bg-card/95 border border-border rounded-full px-1.5 py-3 flex flex-col items-center gap-1 shadow-lg">
+        {TOOLBELT_CATEGORIES.filter(c => c.group === "top").map(renderButton)}
+        <div className="h-px w-5 bg-border/60 my-1" />
+        {TOOLBELT_CATEGORIES.filter(c => c.group === "main").map(renderButton)}
+        <div className="h-px w-5 bg-border/60 my-1" />
+        {TOOLBELT_CATEGORIES.filter(c => c.group === "bottom").map(renderButton)}
+      </div>
+
+      {/* Slide-out tile panel */}
+      <div
+        className={cn(
+          "ml-2 bg-card/95 border border-border rounded-2xl overflow-hidden shadow-lg transition-all duration-200 flex flex-col",
+          slideOpen ? "w-56 opacity-100" : "w-0 opacity-0",
+        )}
+        style={{ maxHeight: 460 }}
+      >
+        {activeCat && slideOpen && (
+          <>
+            <div className="px-3 py-2.5 border-b border-border/50 flex items-center gap-2">
+              <span className="text-sky-400 text-sm leading-none">{activeCat.glyph}</span>
+              <span className="text-xs font-semibold">{activeCat.label.replace(/&amp;/g, "&")}</span>
+              <button onClick={() => onPick("pointer")} className="ml-auto">
+                <Pill size="sm">✕</Pill>
+              </button>
+            </div>
+            <div className="px-3 py-2 border-b border-border/50">
+              <div className="text-[11px] text-muted-foreground leading-snug">{activeCat.description}</div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1.5">
+              {activeCat.tiles.map(tile => (
+                <button
+                  key={tile.id}
+                  className="text-left rounded-lg border border-border/60 bg-muted/30 px-2.5 py-2 hover:bg-muted/60 hover:border-foreground/30 transition-colors flex items-start gap-2 cursor-grab active:cursor-grabbing"
+                >
+                  <span className="text-sky-300 text-base leading-none mt-0.5">{activeCat.glyph}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-semibold truncate">{tile.name}</div>
+                    <div className="text-[10px] text-muted-foreground truncate">{tile.detail}</div>
+                    {tile.variants && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {tile.variants.slice(0, 3).map(v => (
+                          <span
+                            key={v}
+                            className="rounded border border-border/60 bg-card/80 px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground"
+                          >
+                            {v}
+                          </span>
+                        ))}
+                        {tile.variants.length > 3 && (
+                          <span className="text-[9px] text-muted-foreground/60 self-center">+{tile.variants.length - 3}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }
 
-function FloatingMarkerDetail({ markerId, onClose }: { markerId: string; onClose: () => void }) {
+function EditorTopBar({
+  placePath, dirty, onUndo, onRedo, onExit,
+}: {
+  placePath: string
+  dirty: boolean
+  onUndo: () => void
+  onRedo: () => void
+  onExit: () => void
+}) {
   return (
     <div
-      className="absolute z-25 bg-card/95 border border-border rounded-lg overflow-auto"
-      style={{ top: 70, right: 14, width: 340, maxHeight: 460 }}
+      className="absolute z-30 bg-card/95 border border-border rounded-lg shadow-lg flex items-center gap-2 px-2.5 py-1.5"
+      style={{ top: 14, left: "50%", transform: "translateX(-50%)" }}
     >
-      <div className="px-3 py-2.5 border-b border-border/50">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold">{markerId}</span>
-          <Pill size="sm" tone="info">Device</Pill>
-          <Pill size="sm" tone="success" active className="ml-auto">Online</Pill>
-          <button onClick={onClose}><Pill size="sm">✕</Pill></button>
+      <Pill size="sm" active tone="info">Editor</Pill>
+      <div className="h-4 w-px bg-border/60" />
+      <span className="text-[11px] text-muted-foreground truncate max-w-[260px]">{placePath}</span>
+      <div className="h-4 w-px bg-border/60" />
+      <button
+        onClick={onUndo}
+        title="Undo (\u2318Z)"
+        className="size-7 rounded-md hover:bg-muted/60 text-sm flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+      >
+        ↶
+      </button>
+      <button
+        onClick={onRedo}
+        title="Redo (\u21E7\u2318Z)"
+        className="size-7 rounded-md hover:bg-muted/60 text-sm flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+      >
+        ↷
+      </button>
+      <div className="h-4 w-px bg-border/60" />
+      <Pill size="sm" tone={dirty ? "warning" : "success"} active>
+        {dirty ? "Unsaved" : "Saved"}
+      </Pill>
+      <div className="h-4 w-px bg-border/60" />
+      <button
+        onClick={onExit}
+        className="rounded-md border border-border bg-muted/40 hover:bg-muted/60 px-2.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+      >
+        Exit editor
+      </button>
+    </div>
+  )
+}
+
+function EditorSelectionAside({
+  selectedMarkerId, placePath, collapsed, onToggleCollapsed,
+}: {
+  selectedMarkerId: string | null
+  placePath: string
+  collapsed: boolean
+  onToggleCollapsed: () => void
+}) {
+  // Pull marker metadata if a marker is picked; otherwise show BOM for the Place.
+  const marker = selectedMarkerId
+    ? MAP_MARKERS.find(m => m.id === selectedMarkerId)
+    : null
+
+  return (
+    <div
+      className="absolute z-25 bg-card/95 border border-border rounded-xl shadow-lg overflow-hidden flex flex-col transition-transform duration-200"
+      style={{
+        top: 60,
+        right: 14,
+        bottom: 14,
+        width: 340,
+        transform: collapsed ? "translateX(360px)" : "translateX(0)",
+      }}
+    >
+      {/* Collapse handle (sticks out the left edge) */}
+      <button
+        onClick={onToggleCollapsed}
+        className="absolute -left-7 top-1/2 -translate-y-1/2 size-7 rounded-l-md bg-card/95 border border-r-0 border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-card transition-colors z-10"
+        title={collapsed ? "Expand panel" : "Collapse panel"}
+      >
+        {collapsed ? "‹" : "›"}
+      </button>
+
+      {!marker && (
+        <>
+          {/* Bill of Materials view (nothing selected) */}
+          <div className="px-3 py-2.5 border-b border-border/50">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold">Bill of Materials</span>
+              <Pill size="sm" tone="info" className="ml-auto">{placePath.split(" › ").slice(-1)[0]}</Pill>
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">All markers on this Place</div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3 text-xs">
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80 mb-1.5">Cameras (12)</div>
+              <div className="flex flex-col gap-1">
+                {[
+                  ["CD52", 4, "Indoor dome, 4K"],
+                  ["CD42", 3, "Indoor dome, 4MP"],
+                  ["CD32", 2, "Indoor dome, 4MP"],
+                  ["CB52", 2, "Bullet, outdoor"],
+                  ["CY52", 1, "Fisheye"],
+                ].map(([sku, n, name]) => (
+                  <div key={sku as string} className="flex items-center gap-2 rounded-md border border-border/50 bg-muted/30 px-2 py-1.5">
+                    <span className="font-mono text-[10px] text-sky-300 w-10">{sku}</span>
+                    <span className="text-[11px] flex-1 truncate text-muted-foreground">{name}</span>
+                    <span className="text-[11px] font-semibold">{n}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80 mb-1.5">Doors (6)</div>
+              <div className="flex flex-col gap-1">
+                {[["AC62", 4, "Access controller"], ["AC42", 2, "Access controller"]].map(([sku, n, name]) => (
+                  <div key={sku as string} className="flex items-center gap-2 rounded-md border border-border/50 bg-muted/30 px-2 py-1.5">
+                    <span className="font-mono text-[10px] text-sky-300 w-10">{sku}</span>
+                    <span className="text-[11px] flex-1 truncate text-muted-foreground">{name}</span>
+                    <span className="text-[11px] font-semibold">{n}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80 mb-1.5">Sensors (4)</div>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2 rounded-md border border-border/50 bg-muted/30 px-2 py-1.5">
+                  <span className="font-mono text-[10px] text-sky-300 w-10">SV23</span>
+                  <span className="text-[11px] flex-1 truncate text-muted-foreground">Motion + temp + humidity</span>
+                  <span className="text-[11px] font-semibold">4</span>
+                </div>
+              </div>
+            </div>
+            <div className="text-[10px] text-muted-foreground/60 italic">
+              BOM is auto-generated from plotted devices. Click any marker on the map to inspect or edit it.
+            </div>
+          </div>
+        </>
+      )}
+
+      {marker && (
+        <>
+          {/* Marker detail (something selected) */}
+          <div className="px-3 py-2.5 border-b border-border/50">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold truncate">{marker.id}</span>
+              <Pill size="sm" tone="info">{marker.kind === "camera" ? "Camera" : marker.kind === "door" ? "Door" : "Sensor"}</Pill>
+              <Pill
+                size="sm"
+                tone={marker.status === "online" ? "success" : marker.status === "offline" ? "warning" : "neutral"}
+                active
+                className="ml-auto"
+              >
+                {marker.status}
+              </Pill>
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">{placePath}</div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
+            {/* Action buttons */}
+            <div className="flex flex-wrap gap-1.5">
+              <button className="rounded-md border border-sky-500/40 bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 px-3 py-1 text-xs font-medium transition-colors">Open footage</button>
+              <button className="rounded-md border border-border bg-muted/50 hover:bg-muted/70 px-3 py-1 text-xs transition-colors">Live view</button>
+              <button className="rounded-md border border-border bg-muted/40 hover:bg-muted/60 px-3 py-1 text-xs text-muted-foreground transition-colors">Configure</button>
+            </div>
+
+            {/* Identity */}
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80 mb-1.5">Identity</div>
+              <div className="flex flex-col gap-1 text-xs">
+                {[
+                  ["Name", marker.id],
+                  ["Site", "HQ-MAIN"],
+                  ["Kind", marker.kind === "camera" ? "Camera (CD52)" : marker.kind === "door" ? "Door (AC62)" : "Sensor (SV23)"],
+                  ["Status", marker.status],
+                  ["Events 24h", String(marker.eventCount)],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex justify-between border-b border-border/30 last:border-0 py-1">
+                    <span className="text-muted-foreground">{k}</span>
+                    <span className={
+                      v === "online" ? "text-emerald-400" :
+                      v === "offline" ? "text-red-400" :
+                      v === "degraded" ? "text-amber-400" : ""
+                    }>
+                      {v}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Geometry */}
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80 mb-1.5">Geometry</div>
+              <div className="flex flex-col gap-1 text-xs">
+                {[
+                  ["Position", `${marker.x}% × ${marker.y}%`],
+                  ["Heading", "215°"],
+                  ["Mount height", "9 ft"],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex justify-between border-b border-border/30 last:border-0 py-1">
+                    <span className="text-muted-foreground">{k}</span>
+                    <span className="font-mono">{v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Coverage (cameras only) */}
+            {marker.kind === "camera" && (
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80 mb-1.5">Coverage</div>
+                <div className="flex flex-col gap-1 text-xs">
+                  {[
+                    ["FOV", "108°"],
+                    ["Range", "60 ft"],
+                    ["Resolution", "4K @ 30 fps"],
+                  ].map(([k, v]) => (
+                    <div key={k} className="flex justify-between border-b border-border/30 last:border-0 py-1">
+                      <span className="text-muted-foreground">{k}</span>
+                      <span className="font-mono">{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="pt-1">
+              <button className="w-full rounded-md border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-300 px-3 py-1 text-[11px] transition-colors">
+                Remove marker
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+const HOTKEY_GROUPS: { title: string; rows: [string, string][] }[] = [
+  {
+    title: "Tools",
+    rows: [
+      ["V", "Pointer / Select"],
+      ["D", "Devices menu"],
+      ["A", "Architecture menu"],
+      ["N", "Annotations menu"],
+      ["L", "Layouts menu"],
+      ["M", "Measure menu"],
+      ["S", "Share & Permissions"],
+      ["?", "Help & hotkeys"],
+    ],
+  },
+  {
+    title: "Canvas",
+    rows: [
+      ["Space (hold)", "Pan"],
+      ["⌘ +", "Zoom in"],
+      ["⌘ −", "Zoom out"],
+      ["⌘ 0", "Fit to Place"],
+      ["G", "Toggle grid"],
+      ["⇧ G", "Toggle snap"],
+    ],
+  },
+  {
+    title: "Editing",
+    rows: [
+      ["⌘ Z", "Undo"],
+      ["⇧ ⌘ Z", "Redo"],
+      ["⌘ D", "Duplicate selection"],
+      ["⌫ / Delete", "Remove selection"],
+      ["⌘ S", "Save (auto-saves; manual flush)"],
+      ["Esc", "Cancel current tool"],
+    ],
+  },
+  {
+    title: "Selection",
+    rows: [
+      ["Click", "Select marker"],
+      ["⇧ Click", "Extend selection"],
+      ["⌘ A", "Select all on Place"],
+      ["⌘ Click", "Inverse pick"],
+    ],
+  },
+]
+
+function HotkeysModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="absolute inset-0 z-50 bg-black/55 flex items-center justify-center p-6" onClick={onClose}>
+      <div
+        className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-2xl max-h-full overflow-hidden flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="px-4 py-3 border-b border-border/50 flex items-center gap-2">
+          <span className="text-sm font-semibold">Help &amp; hotkeys</span>
+          <span className="text-[11px] text-muted-foreground">Press ? from anywhere to reopen</span>
+          <button onClick={onClose} className="ml-auto">
+            <Pill size="sm">✕</Pill>
+          </button>
         </div>
-        <div className="text-[11px] text-muted-foreground mt-0.5">Camera · CD52 · HQ-MAIN · Floor 3 › Lobby</div>
-      </div>
-      <div className="p-3 flex flex-col gap-2.5">
-        <div className="flex flex-wrap gap-1.5">
-          <button className="rounded-md border border-sky-500/40 bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 px-3 py-1 text-xs font-medium transition-colors">Open footage</button>
-          <button className="rounded-md border border-border bg-muted/50 hover:bg-muted/70 px-3 py-1 text-xs transition-colors">Live view</button>
-          <button className="rounded-md border border-border bg-muted/40 hover:bg-muted/60 px-3 py-1 text-xs text-muted-foreground transition-colors">Configure</button>
+        <div className="flex-1 overflow-y-auto p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {HOTKEY_GROUPS.map(g => (
+            <div key={g.title}>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80 mb-2">
+                {g.title}
+              </div>
+              <div className="flex flex-col gap-1">
+                {g.rows.map(([key, desc]) => (
+                  <div key={key} className="flex items-center justify-between text-xs gap-3">
+                    <span className="text-muted-foreground truncate">{desc}</span>
+                    <kbd className="font-mono text-[10px] rounded border border-border bg-muted/50 px-1.5 py-0.5 whitespace-nowrap shrink-0">
+                      {key}
+                    </kbd>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="h-px bg-border/50" />
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
-          Marker identity (always on)
+        <div className="px-4 py-3 border-t border-border/50 flex items-center gap-2 text-[11px] text-muted-foreground">
+          <span>Need more?</span>
+          <a className="underline underline-offset-2 hover:text-foreground" href="#" onClick={e => e.preventDefault()}>Editor docs</a>
+          <span>·</span>
+          <a className="underline underline-offset-2 hover:text-foreground" href="#" onClick={e => e.preventDefault()}>Site Planner training</a>
+          <span>·</span>
+          <a className="underline underline-offset-2 hover:text-foreground" href="#" onClick={e => e.preventDefault()}>Contact support</a>
         </div>
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="text-left text-muted-foreground/80 border-b border-border/50">
-              <th className="py-1 font-normal">Field</th>
-              <th className="py-1 font-normal">Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              ["Name", markerId],
-              ["Site", "HQ-MAIN"],
-              ["Kind", "Camera (CD52)"],
-              ["Status", "Online"],
-            ].map(([k, v]) => (
-              <tr key={k} className="border-b border-border/30">
-                <td className="py-1 text-muted-foreground">{k}</td>
-                <td className="py-1">{v}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
     </div>
   )
@@ -1724,6 +2234,11 @@ export function MockPrototype() {
   const [navStackIds, setNavStackIds] = useState<string[]>([])
   const [activeCollection, setActiveCollection] = useState("")
   const [flyTarget, setFlyTarget] = useState("")
+  // Editor-specific state
+  const [editorTool, setEditorTool] = useState<ToolbeltCategoryId>("pointer")
+  const [editorAsideCollapsed, setEditorAsideCollapsed] = useState(false)
+  const [hotkeysOpen, setHotkeysOpen] = useState(false)
+  const [editorDirty] = useState(true)
 
   const navTrail = navStackIds.map(id => findNode(id)).filter((n): n is SpatialNode => Boolean(n))
   const currentNode = navTrail[navTrail.length - 1]
@@ -2204,8 +2719,29 @@ export function MockPrototype() {
             />
           )}
 
-          {inEditor && <FloatingEditorToolbar onExit={() => setVariant("place-selected")} />}
-          {inEditor && <FloatingMarkerDetail markerId={pickedMarker} onClose={() => setVariant("place-selected")} />}
+          {inEditor && (
+            <>
+              <EditorTopBar
+                placePath={currentNode ? breadcrumbText() : "HQ \u203a Main Bldg \u203a Floor 3"}
+                dirty={editorDirty}
+                onUndo={() => {}}
+                onRedo={() => {}}
+                onExit={() => setVariant("place-selected")}
+              />
+              <EditorToolbelt
+                active={editorTool}
+                onPick={id => setEditorTool(id)}
+                onOpenHelp={() => setHotkeysOpen(true)}
+              />
+              <EditorSelectionAside
+                selectedMarkerId={pickedMarker}
+                placePath={currentNode ? breadcrumbText() : "HQ \u203a Main Bldg \u203a Floor 3"}
+                collapsed={editorAsideCollapsed}
+                onToggleCollapsed={() => setEditorAsideCollapsed(!editorAsideCollapsed)}
+              />
+              {hotkeysOpen && <HotkeysModal onClose={() => setHotkeysOpen(false)} />}
+            </>
+          )}
 
           {sitePickerOpen && (
             <SitePicker
@@ -2247,7 +2783,7 @@ export function MockPrototype() {
               <p>A Place is selected. Place card pinned bottom-left over the map. The floating search box collapsed to a magnifier icon to give the Place card and map more breathing room.</p>
             )}
             {variant === "editor" && (
-              <p>Editor mode. Search hidden (collapsed to icon), Alerts hidden. Editor toolbar top-center. Marker detail floats top-right. Map is the workspace.</p>
+              <p><strong>Editor is scoped to one Place.</strong> You can only enter from the Place card's &ldquo;Open in Editor&rdquo; button, so the editor always knows which Floor / Area it&apos;s editing. The viewer rail, alerts cluster, and search are hidden. New chrome: a top center bar with breadcrumb + undo/redo + save status + exit, a left toolbelt with category buttons (Devices, Architecture, Annotations, Layouts, Measure, Share, Help) modeled on Site Planner's ProductMenu, and a right selection aside that shows BOM by default and switches to a marker detail card when a device is picked. Press the &ldquo;?&rdquo; button at the bottom of the toolbelt for the full hotkey reference.</p>
             )}
             {variant === "search-active" && (
               <p>Search has focus. Results dropdown shows places, devices, entities, and collections as a single results list. The Site scope chip below the input is read-only context.</p>
