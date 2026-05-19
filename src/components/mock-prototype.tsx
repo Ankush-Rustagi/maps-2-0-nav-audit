@@ -56,21 +56,21 @@ type EntityKind =
 // Data constants (mirror canvas 1:1)
 // ============================================================================
 
-const VARIANTS: { id: MockVariant; label: string; sub: string }[] = [
-  { id: "null-state", label: "A · Null state", sub: "Map only. Hamburger + floating search + Alerts overlay." },
-  { id: "rail-expanded", label: "B · Rail expanded", sub: "Hamburger clicked. Icon column visible." },
-  { id: "recents-flyout", label: "C · Recents flyout", sub: "Recents list flyout, filterable, same shape as other lists." },
-  { id: "locations-flyout", label: "D · Locations flyout", sub: "Locations list with filter chips + free-text. Site context strip on top." },
-  { id: "collections-flyout", label: "E · Collections flyout", sub: "Collections list. Same shape as Locations." },
-  { id: "files-flyout", label: "F · Files flyout", sub: "Files list with drag-to-canvas affordance for first-time builders." },
-  { id: "place-selected", label: "G · Place selected", sub: "Place card pinned bottom-left. Search collapsed to icon." },
-  { id: "editor", label: "H · Editor mode", sub: "Toolbar + marker detail. Search collapsed. Alerts hidden." },
-  { id: "search-active", label: "I · Search active", sub: "Navigator search. Results dropdown. Site scope is read-only context here." },
-  { id: "site-picker", label: "J · Site picker open", sub: "Site chip clicked. Shows only sites with map presence in current view." },
-  { id: "file-first-dropzone", label: "K · File-first dropzone", sub: "Files flyout open. Dropzone at top of list. Path A flow." },
-  { id: "place-with-drop", label: "L · Place + drag accelerator", sub: "Place card open. Browser detects dragover. Drop hint over map. Path B." },
-  { id: "file-attaching", label: "M · File attaching / aligning", sub: "Post-drop. Progress card + alignment prompt over the map." },
-  { id: "collection-detail", label: "N · Collection detail", sub: "Inside a Collection. Children render as a flat nav list." },
+const VARIANTS: { id: MockVariant; label: string; short: string; sub: string }[] = [
+  { id: "null-state", label: "A · Null state", short: "Null state", sub: "Map only. Hamburger + floating search + Alerts overlay." },
+  { id: "rail-expanded", label: "B · Rail expanded", short: "Rail expanded", sub: "Hamburger clicked. Icon column visible." },
+  { id: "recents-flyout", label: "C · Recents flyout", short: "Recents", sub: "Recents list flyout, filterable, same shape as other lists." },
+  { id: "locations-flyout", label: "D · Locations flyout", short: "Locations", sub: "Locations list with filter chips + free-text. Site context strip on top." },
+  { id: "collections-flyout", label: "E · Collections flyout", short: "Collections", sub: "Collections list. Same shape as Locations." },
+  { id: "files-flyout", label: "F · Files flyout", short: "Files", sub: "Files list with drag-to-canvas affordance for first-time builders." },
+  { id: "place-selected", label: "G · Place selected", short: "Place selected", sub: "Place card pinned bottom-left. Search collapsed to icon." },
+  { id: "editor", label: "H · Editor mode", short: "Editor", sub: "Toolbar + marker detail. Search collapsed. Alerts hidden." },
+  { id: "search-active", label: "I · Search active", short: "Search", sub: "Navigator search. Results dropdown. Site scope is read-only context here." },
+  { id: "site-picker", label: "J · Site picker open", short: "Site picker", sub: "Site chip clicked. Shows only sites with map presence in current view." },
+  { id: "file-first-dropzone", label: "K · File-first dropzone", short: "File dropzone", sub: "Files flyout open. Dropzone at top of list. Path A flow." },
+  { id: "place-with-drop", label: "L · Place + drag accelerator", short: "Place + drag", sub: "Place card open. Browser detects dragover. Drop hint over map. Path B." },
+  { id: "file-attaching", label: "M · File attaching / aligning", short: "File attaching", sub: "Post-drop. Progress card + alignment prompt over the map." },
+  { id: "collection-detail", label: "N · Collection detail", short: "Collection", sub: "Inside a Collection. Children render as a flat nav list." },
 ]
 
 const RAIL_ITEMS: { id: RailItem; label: string; glyph: string }[] = [
@@ -1868,53 +1868,67 @@ export function MockPrototype() {
     <div className="space-y-4">
       <Callout variant="info" title="Interactive prototype">
         Functional state-machine prototype of the Maps 2.0 IA, mirrored 1:1 from the Cursor Canvas. Click the rail icons, search bar, recents,
-        place items, layer cluster, and Site picker to navigate between states. Or use the &ldquo;Jump to state&rdquo; rail on the left to snap into any of the 14 variants.
+        place items, layer cluster, and Site picker to navigate between states. Or use the &ldquo;Jump to state&rdquo; rail on the left to snap into any of the 14 variants. Hover the ⓘ icon next to any state for its description.
       </Callout>
 
       {/* Two-column layout: state rail on left, prototype on right */}
       <div className="flex gap-4 items-start">
         {/* Jump-to-state rail */}
-        <aside className="shrink-0 w-64 rounded-xl border border-border bg-card overflow-hidden sticky top-4 max-h-[calc(100vh-2rem)] flex flex-col">
+        <aside className="shrink-0 w-44 rounded-xl border border-border bg-card overflow-hidden sticky top-4 max-h-[calc(100vh-2rem)] flex flex-col">
           <div className="px-3 py-2.5 border-b border-border/50">
             <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
               Jump to state
             </div>
             <div className="text-[10px] text-muted-foreground/70 mt-0.5">
-              Highlights as you click around
+              Hover ⓘ for detail
             </div>
           </div>
           <nav className="flex flex-col gap-0.5 p-1.5 overflow-y-auto">
-            {VARIANTS.map(v => {
+            {VARIANTS.map((v, i) => {
               const isActive = variant === v.id
+              const letter = String.fromCharCode(65 + i)
               return (
-                <button
+                <div
                   key={v.id}
-                  onClick={() => setVariant(v.id)}
                   className={cn(
-                    "group text-left rounded-md px-2.5 py-1.5 border transition-colors",
+                    "group flex items-center gap-1.5 rounded-md border transition-colors",
                     isActive
-                      ? "bg-sky-500/15 border-sky-500/50 text-sky-100"
+                      ? "bg-sky-500/15 border-sky-500/50"
                       : "border-transparent hover:bg-muted/40 hover:border-border/60",
                   )}
                 >
-                  <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setVariant(v.id)}
+                    className="flex-1 min-w-0 flex items-center gap-1.5 text-left px-2 py-1.5"
+                  >
                     <span className={cn(
-                      "size-1.5 rounded-full shrink-0",
-                      isActive ? "bg-sky-400" : "bg-muted-foreground/30 group-hover:bg-muted-foreground/60",
-                    )} />
+                      "size-4 rounded text-[10px] font-bold flex items-center justify-center shrink-0",
+                      isActive
+                        ? "bg-sky-500/40 text-sky-50"
+                        : "bg-muted/50 text-muted-foreground/80 group-hover:text-foreground/70",
+                    )}>
+                      {letter}
+                    </span>
                     <span className={cn(
                       "text-[11px] font-medium whitespace-nowrap truncate",
-                      !isActive && "text-muted-foreground",
+                      isActive ? "text-sky-100" : "text-muted-foreground",
                     )}>
-                      {v.label}
+                      {v.short}
                     </span>
-                  </div>
-                  {isActive && (
-                    <div className="text-[10px] text-sky-200/70 mt-0.5 leading-snug pl-3.5">
-                      {v.sub}
-                    </div>
-                  )}
-                </button>
+                  </button>
+                  <span
+                    title={v.sub}
+                    className={cn(
+                      "shrink-0 mr-1.5 size-4 rounded-full border flex items-center justify-center text-[10px] cursor-help transition-colors",
+                      isActive
+                        ? "border-sky-500/40 text-sky-300 hover:bg-sky-500/20"
+                        : "border-border text-muted-foreground/60 hover:text-foreground hover:border-foreground/40",
+                    )}
+                    aria-label={`Description for ${v.short}`}
+                  >
+                    i
+                  </span>
+                </div>
               )
             })}
           </nav>
