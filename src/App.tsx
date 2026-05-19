@@ -290,6 +290,9 @@ function PatternsSection() {
 // ─── Proposed IA section (was Tab 3) ─────────────────────────────────────────
 
 const KIND_COLOR: Record<string, string> = {
+  mode: "bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/30",
+  state: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+  surface: "bg-violet-500/15 text-violet-200 border-violet-500/40",
   rail: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30",
   search: "bg-sky-500/15 text-sky-300 border-sky-500/30",
   panel: "bg-violet-500/15 text-violet-300 border-violet-500/30",
@@ -299,6 +302,7 @@ const KIND_COLOR: Record<string, string> = {
   section: "bg-neutral-500/15 text-neutral-400 border-neutral-500/30",
   tab: "bg-pink-500/15 text-pink-300 border-pink-500/30",
   button: "bg-blue-500/15 text-blue-300 border-blue-500/30",
+  input: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
 }
 
 function NavTreeNode({ node, isExpanded, hasChildren, onToggle }: {
@@ -309,12 +313,17 @@ function NavTreeNode({ node, isExpanded, hasChildren, onToggle }: {
 }) {
   const indent = node.depth * 20
   const isSection = node.kind === "section"
+  const isMode = node.kind === "mode"
   return (
     <div
       className={cn(
         "flex items-start gap-2 py-1.5 px-2 rounded-lg group",
-        isSection ? "bg-muted/20 border border-border/50 mt-2" : "hover:bg-muted/20 transition-colors",
-        node.depth === 0 && !isSection ? "border-l-2 border-primary/40 pl-3" : "",
+        isMode
+          ? "bg-fuchsia-500/5 border border-fuchsia-500/30 mt-4"
+          : isSection
+            ? "bg-muted/20 border border-border/50 mt-2"
+            : "hover:bg-muted/20 transition-colors",
+        node.depth === 0 && !isSection && !isMode ? "border-l-2 border-primary/40 pl-3" : "",
       )}
       style={{ paddingLeft: `${indent + 8}px` }}
     >
@@ -332,7 +341,18 @@ function NavTreeNode({ node, isExpanded, hasChildren, onToggle }: {
       </button>
       <div className="flex-1 min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <span className={cn("text-sm", isSection ? "font-semibold text-foreground/60 uppercase text-xs tracking-wider" : node.depth === 0 ? "font-medium" : "")}>
+          <span
+            className={cn(
+              "text-sm",
+              isMode
+                ? "font-semibold text-foreground uppercase text-xs tracking-wider"
+                : isSection
+                  ? "font-semibold text-foreground/60 uppercase text-xs tracking-wider"
+                  : node.depth === 0
+                    ? "font-medium"
+                    : "",
+            )}
+          >
             {node.label}
           </span>
           {node.kind && node.kind !== "section" && (
@@ -353,8 +373,10 @@ function NavTreeNode({ node, isExpanded, hasChildren, onToggle }: {
 }
 
 function TabProposedIA() {
-  // maxDepth controls which depth levels are visible (0 = root only, 99 = all)
-  const [maxDepth, setMaxDepth] = useState<number>(99)
+  // maxDepth controls which depth levels are visible (0 = root only, 99 = all).
+  // Default to L2 so the five top-level modes and their major sections are
+  // visible without overwhelming the reader with leaf rows.
+  const [maxDepth, setMaxDepth] = useState<number>(2)
   // Per-node individual collapse (on top of maxDepth)
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
 
@@ -394,13 +416,14 @@ function TabProposedIA() {
     { label: "L1", depth: 1 },
     { label: "L2", depth: 2 },
     { label: "L3", depth: 3 },
+    { label: "L4", depth: 4 },
     { label: "All", depth: 99 },
   ].filter(l => l.depth <= treMaxDepth || l.depth === 99)
 
   return (
     <div className="space-y-6">
       <Callout variant="info" title="What this is">
-        The complete proposed information architecture for Verkada Maps 2.0, derived from the Google Maps audit. Indentation = hierarchy depth. Use the level controls to expand/collapse the tree by depth, or click individual nodes.
+        The proposed information architecture for Verkada Maps 2.0, mirrored 1:1 against the click-through prototype in the Maps IA Prototype tab. Top-level chunks follow the prototype&apos;s mode model: prototype states, Viewer mode, Editor mode, Settings modal, and the data model that underpins them. Indentation = hierarchy depth. Use the level controls or click individual nodes to expand and collapse.
       </Callout>
 
       {/* Legend */}

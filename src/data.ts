@@ -75,139 +75,246 @@ export const PATTERNS: Pattern[] = [
   { name: "Auth-gated rail items redirect gracefully", whatGoogleDoes: "Clicking Saved/Recents when signed-out redirects to a sign-in page, then returns to the action.", whyItWorks: "Doesn't hide auth-gated affordances; surfaces the gate at the moment of intent.", verkadaApplication: "Permissioned items (e.g., Editor, Activity for Sites you can't view) show the affordance but trigger a permission-request flow on click instead of hiding.", appliesTo: ["Rail", "Menu drawer"], priority: "P1" },
 ]
 
-// ─── Tab 3: NAV Tree ─────────────────────────────────────────────────────────
+// ─── Proposed IA tree ────────────────────────────────────────────────────────
+//
+// This tree mirrors the interactive prototype (Tab 1) 1:1. Every node here
+// corresponds to a surface, control, list, or state in the click-through
+// prototype. Edits to either side should land in both places. Top-level
+// groupings follow the prototype's mode model:
+//   1. Prototype states  (the 16 named click-through variants A-P)
+//   2. Viewer mode       (chrome, rail, flyouts, search, site picker,
+//                         place card, file flows, collection detail)
+//   3. Editor mode       (top bar, toolbelt, selection aside)
+//   4. Settings modal    (categories, scope tabs, row metadata)
+//   5. Data model        (Places / Sites / Markers / Collections /
+//                         Layouts / Data layers)
 
 export type NavNode = {
   label: string
   depth: number
-  kind?: "rail" | "search" | "tab" | "button" | "drawer" | "panel" | "filter" | "layer" | "input" | "section"
+  /** Visual tag for the node. `mode` chunks the top-level groupings;
+   *  `surface` marks a discrete floating UI surface (e.g. Layers,
+   *  Alerts, Place card); other kinds match the actual control type. */
+  kind?:
+    | "mode"
+    | "surface"
+    | "rail"
+    | "search"
+    | "tab"
+    | "button"
+    | "drawer"
+    | "panel"
+    | "filter"
+    | "layer"
+    | "input"
+    | "section"
+    | "state"
   note?: string
   source?: string
 }
 
 export const NAV_TREE: NavNode[] = [
-  { label: "Persistent left rail (always visible)", depth: 0, kind: "rail" },
-  { label: "Map (live map view)", depth: 1, kind: "button", source: "GMaps default view" },
-  { label: "Locations", depth: 1, kind: "button", note: "Verkada-only. Top-level container for all spatial entities." },
-  { label: "Locations directory (browse / search / filter)", depth: 2 },
-  { label: "New Location (button)", depth: 2 },
-  { label: "Pick a Location → opens Place panel", depth: 2 },
-  { label: "Collections", depth: 1, kind: "button", source: "GMaps Saved" },
-  { label: "Data Layers", depth: 1, kind: "button", note: "Verkada-only. Visibility controls for product families + visualizations." },
-  { label: "Recents", depth: 1, kind: "button", source: "GMaps Recents" },
-  { label: "Profile / org switcher", depth: 1, kind: "button", note: "Owned by Command shell" },
-  { label: "Top of panel (always visible above any view)", depth: 0, kind: "section", note: "Two co-primary controls: Search (geography) and Site scope (logical visibility). Side-by-side, neither subordinate." },
-  { label: "Search Verkada Maps (combobox) — GEOGRAPHY (primary axis A)", depth: 1, kind: "search", source: "GMaps search-first", note: "Resolves Places, Markers, Collections, and Sites." },
-  { label: "Autocomplete (grouped by entity class)", depth: 2, kind: "panel" },
-  { label: "Places (Location, Building, Floor, Area, Sub-area)", depth: 3 },
-  { label: "Markers (Devices, Entities, Annotations)", depth: 3 },
-  { label: "Collections", depth: 3 },
-  { label: "Sites — resolves to associated Places", depth: 3, note: "Sites have no geography. Result header: '{Site} is associated with these places:'" },
-  { label: "Recent searches", depth: 3 },
-  { label: "Site scope control — LOGICAL VISIBILITY (primary axis B)", depth: 1, kind: "filter", note: "Verkada-only. Lives in Maps top-of-panel. Determines which devices and entities are visible. Persists across navigation." },
-  { label: "Current scope chip ('All my sites' / 'N sites: A, B, C' / single site)", depth: 2 },
-  { label: "Click chip → Site scope picker", depth: 2 },
-  { label: "Pick one or many sites (multi-select)", depth: 3 },
-  { label: "Site hierarchy (sub-sites under parent sites)", depth: 3 },
-  { label: "Reset to 'All my sites' (default)", depth: 3 },
-  { label: "Show 'what changes when I scope?' preview", depth: 3 },
-  { label: "Mental model: Geography × Logical scope", depth: 1, kind: "section", note: "These axes compose. 'Show me SF Office (geography) for Executive Eyes Only sites (scope)' filters to the intersection." },
-  { label: "Spatial breadcrumb", depth: 0, kind: "section", note: "Verkada-only. Linear path to active node." },
-  { label: "Path format: Org › Location › (Building) › (Floor | Area) › (Area | Sub-area)", depth: 1 },
-  { label: "Example (floor path): Org › HQ Campus › Main Bldg › Floor 1", depth: 2 },
-  { label: "Example (sibling area): Org › HQ Campus › Main Bldg › Front Lawn (Area)", depth: 2, note: "Same Building. Front Lawn is an Area sibling to Floor 1." },
-  { label: "Example (Areas at Location): Org › East Parking Lot › Row A › Stall 12", depth: 2 },
-  { label: "Sibling switcher in breadcrumb (dropdown on each level)", depth: 1, note: "Click any breadcrumb segment to see siblings at that level." },
-  { label: "Data Layers (top-level navigational concept)", depth: 0, kind: "panel", note: "Two paired halves: (A) Devices & Entities = SOURCES; (B) Visualizations = OUTPUTS. Both halves are independently toggleable and composable." },
-  { label: "(A) Devices & Entities — SOURCES", depth: 1, kind: "section" },
-  { label: "Cameras", depth: 2, kind: "layer" },
-  { label: "Access Control (doors, readers, ACUs)", depth: 2, kind: "layer" },
-  { label: "Alarms", depth: 2, kind: "layer" },
-  { label: "Sensors (environmental, occupancy)", depth: 2, kind: "layer" },
-  { label: "Intercoms", depth: 2, kind: "layer" },
-  { label: "Guard / Patrol", depth: 2, kind: "layer" },
-  { label: "Gateways / Connectivity", depth: 2, kind: "layer" },
-  { label: "(B) Visualizations — OUTPUTS", depth: 1, kind: "section" },
-  { label: "V1 launch core", depth: 2, kind: "section" },
-  { label: "Basemap (Streets / Satellite / Hybrid / Dark)", depth: 3, kind: "layer", source: "GMaps Map type" },
-  { label: "Marker identity (always on — non-toggleable)", depth: 3, kind: "layer" },
-  { label: "Device Status (online / offline / health)", depth: 3, kind: "layer" },
-  { label: "Clustered markers (zoom-based aggregation)", depth: 3, kind: "layer" },
-  { label: "Coverage (camera FOV, gateway range, sensor radius)", depth: 3, kind: "layer" },
-  { label: "Events & Alerts (real-time + historical)", depth: 3, kind: "layer" },
-  { label: "Post-launch tier (later)", depth: 2, kind: "section" },
-  { label: "Foot Traffic / Badge Activity", depth: 3, kind: "layer" },
-  { label: "Patrol / Guard routes", depth: 3, kind: "layer" },
-  { label: "Door Schedules", depth: 3, kind: "layer" },
-  { label: "Building Occupancy", depth: 3, kind: "layer" },
-  { label: "Measurements (perimeter, area, distance)", depth: 3, kind: "layer" },
-  { label: "Emergency State", depth: 3, kind: "layer" },
-  { label: "Time-series playback", depth: 3, kind: "layer" },
-  { label: "Hamburger menu drawer", depth: 0, kind: "drawer", source: "GMaps Menu" },
-  { label: "Imports & bulk actions", depth: 1 },
-  { label: "History & audit log", depth: 1 },
-  { label: "Settings", depth: 1 },
-  { label: "Get help", depth: 1 },
-  { label: "Send feedback", depth: 1 },
-  { label: "Default panel (when nothing else selected)", depth: 0, kind: "panel" },
-  { label: "Active Location header", depth: 1, kind: "section" },
-  { label: "Location name + Site badges", depth: 2 },
-  { label: "Alerts & events context (always-on, permission-scoped)", depth: 1, kind: "section" },
-  { label: "Emergency banner (if active emergency)", depth: 2 },
-  { label: "Active alerts (last N, filterable by severity)", depth: 2 },
-  { label: "Recent events (badge swipes, motion, door forced-open, etc.)", depth: 2 },
-  { label: "Recents (last 5 places / events)", depth: 1, source: "GMaps Recents" },
-  { label: "Pinned Collections", depth: 1 },
-  { label: "Place panel (Location / Building / Floor / Area / Sub-area)", depth: 0, kind: "panel" },
-  { label: "Back arrow + spatial breadcrumb", depth: 1, source: "GMaps Back" },
-  { label: "Header", depth: 1, kind: "section" },
-  { label: "Photo / layout thumbnail", depth: 2 },
-  { label: "Place name (heading)", depth: 2 },
-  { label: "Type chip (Location / Building / Floor / Area)", depth: 2 },
-  { label: "Site badges", depth: 2, note: "Verkada-only" },
-  { label: "Health indicator (devices online / total)", depth: 2, note: "Verkada-only" },
-  { label: "Action button row", depth: 1, kind: "section", source: "GMaps action row" },
-  { label: "Open in Editor", depth: 2 },
-  { label: "Add to Collection (popover)", depth: 2, source: "GMaps Save → list picker" },
-  { label: "Share", depth: 2 },
-  { label: "Permissions", depth: 2, note: "Contextual" },
-  { label: "Nearby", depth: 2, source: "GMaps Nearby" },
-  { label: "Tabs (Overview / Markers / Activity / About)", depth: 1, kind: "tab" },
-  { label: "Overview", depth: 2 },
-  { label: "Markers tab", depth: 2 },
-  { label: "Filter chips (type, status, owner, tag)", depth: 3 },
-  { label: "Marker list (rows: name, type, status, last seen)", depth: 3 },
-  { label: "Activity tab", depth: 2, source: "GMaps Reviews + Your timeline" },
-  { label: "Time-scrubber (day / week / custom)", depth: 3 },
-  { label: "Event list (alerts, badge swipes, lockdowns)", depth: 3 },
-  { label: "About / Metadata tab", depth: 2, source: "GMaps About" },
-  { label: "Address / coordinates / plus code", depth: 3 },
-  { label: "Permissions (sites, roles, sharing)", depth: 3, note: "Verkada-only" },
-  { label: "Edit history (who, when, what)", depth: 3, note: "Verkada-only" },
-  { label: "Editor mode (CONTEXTUAL — only reachable from a Place panel)", depth: 0, kind: "panel", note: "Verkada-only. Entry exclusively via 'Open in Editor' in a Place panel. Scope = that Place." },
-  { label: "Toolbar: Plotting tools", depth: 1 },
-  { label: "Architectural: Wall, Door, Window, Elevator, Stairs", depth: 2 },
-  { label: "Verkada: Devices (cameras, ACUs, sensors…), Entities", depth: 2 },
-  { label: "Annotations: Labels, non-Verkada objects", depth: 2 },
-  { label: "Canvas controls (3D orbit, show/hide layers, re-center, zoom to fit)", depth: 1 },
-  { label: "Directory (left-rail inside Editor: all markers in this Place)", depth: 1 },
-  { label: "Save / publish (exits Editor mode back to Place panel)", depth: 1 },
-  { label: "Collections panel (opened from rail)", depth: 0, kind: "panel", source: "GMaps Saved (1:1 model)", note: "Collections contain spatial entities only. Never directly contain Sites." },
-  { label: "Section chips: My Collections / Shared with me / Following / System", depth: 1, kind: "filter" },
-  { label: "Collection rows (name, item count, sharing icon, last updated)", depth: 1 },
-  { label: "New Collection (button)", depth: 1, source: "GMaps New list" },
-  { label: "Collection detail", depth: 1 },
-  { label: "Filter chips: by type (Location, Building, Floor, Area, File, Boundary)", depth: 2 },
-  { label: "Item list (places + files + boundaries, never Sites)", depth: 2 },
-  { label: "Recents panel (from rail)", depth: 0, kind: "panel", source: "GMaps Recents" },
-  { label: "Filter chips: All / Locations / Markers / Events / Collections", depth: 1 },
-  { label: "Recent items list (type icon, name, timestamp, jump-to)", depth: 1 },
-  { label: "Search results panel (Google Maps-style)", depth: 0, kind: "panel", source: "GMaps search results" },
-  { label: "Filter chips (dynamic per result class)", depth: 1 },
-  { label: "Advanced filters sheet ('All filters')", depth: 1 },
-  { label: "'Search this area' floating button", depth: 1 },
-  { label: "'Update results when map moves' toggle", depth: 1 },
-  { label: "Result list (cards by entity class)", depth: 1 },
+  // ──────────────────────────────────────────────────────────────────────
+  // 1. Prototype states (the click-through variants)
+  // ──────────────────────────────────────────────────────────────────────
+  { label: "Prototype states (16 click-through variants A\u2013P)", depth: 0, kind: "mode", note: "Direct map to the Mock prototype tab. Each state is reachable from the left-side state rail." },
+  { label: "A \u00b7 Null state", depth: 1, kind: "state", note: "Map only. Hamburger top-left, floating search, Alerts cluster, Account avatar top-right." },
+  { label: "B \u00b7 Rail expanded", depth: 1, kind: "state", note: "Hamburger clicked. Icon column visible. \u2699 Settings footer item is the only Viewer entry to Settings." },
+  { label: "C \u00b7 Recents flyout", depth: 1, kind: "state" },
+  { label: "D \u00b7 Locations flyout", depth: 1, kind: "state", note: "Site context strip on top, filter chips + free-text, spatial breadcrumb." },
+  { label: "E \u00b7 Collections flyout", depth: 1, kind: "state" },
+  { label: "F \u00b7 Files flyout", depth: 1, kind: "state", note: "Files list with drag-to-canvas affordance for first-time builders." },
+  { label: "G \u00b7 Place selected", depth: 1, kind: "state", note: "Place card pinned bottom-left. \u201cOpen in Editor\u201d is the only entry to editor mode." },
+  { label: "H \u00b7 Viewer \u2192 Editor handoff", depth: 1, kind: "state", note: "Place card highlights \u201cOpen in Editor\u201d. Viewer chrome dims, editor chrome fades in." },
+  { label: "I \u00b7 Editor mode", depth: 1, kind: "state", note: "Toolbelt + selection aside + top bar. Viewer rail and alerts hidden." },
+  { label: "J \u00b7 Search active", depth: 1, kind: "state", note: "Navigator search. Results dropdown. Site scope is read-only context here." },
+  { label: "K \u00b7 Site picker open", depth: 1, kind: "state", note: "Site chip clicked. Shows only sites with map presence in current view." },
+  { label: "L \u00b7 File-first dropzone", depth: 1, kind: "state", note: "Files flyout open. Dropzone at top of list. Path A flow." },
+  { label: "M \u00b7 Place + drag accelerator", depth: 1, kind: "state", note: "Place card open. Browser detects dragover. Drop hint over map. Path B flow." },
+  { label: "N \u00b7 File attaching / aligning", depth: 1, kind: "state", note: "Post-drop. Progress card + alignment prompt over the map." },
+  { label: "O \u00b7 Collection detail", depth: 1, kind: "state", note: "Inside a Collection. Children render as a flat nav list." },
+  { label: "P \u00b7 Settings open", depth: 1, kind: "state", note: "User + Org Admin settings, scoped tabs, locked rows." },
+
+  // ──────────────────────────────────────────────────────────────────────
+  // 2. Viewer mode
+  // ──────────────────────────────────────────────────────────────────────
+  { label: "Viewer mode", depth: 0, kind: "mode", note: "Read-only inspection of the map. All variants A\u2013G, J\u2013O, P live here. The only path into Editor mode is the Place card." },
+
+  // 2a. Persistent chrome (always visible)
+  { label: "Persistent chrome (visible across all viewer states)", depth: 1, kind: "section" },
+  { label: "Hamburger button (top-left)", depth: 2, kind: "button", note: "Toggles the left rail." },
+  { label: "Floating search bar (top-center)", depth: 2, kind: "search", source: "GMaps search-first", note: "Federated search across Devices, Entities, Places, Collections." },
+  { label: "Top-right cluster", depth: 2, kind: "section" },
+  { label: "Site scope chip (current site or \u201cN sites\u201d)", depth: 3, kind: "button", note: "Click opens the Site picker." },
+  { label: "Alerts cluster (collapsed badge / expanded list)", depth: 3, kind: "surface", note: "Live alert counts. Click to expand the alert feed." },
+  { label: "Account avatar menu", depth: 3, kind: "surface", note: "Identity + help only. Settings is intentionally NOT here \u2014 the menu footer hints \u201copen the rail.\u201d" },
+  { label: "Identity block (name, email, org chips, role)", depth: 4 },
+  { label: "Help &amp; hotkeys", depth: 4, kind: "button" },
+  { label: "Manage account", depth: 4, kind: "button" },
+  { label: "Switch org", depth: 4, kind: "button" },
+  { label: "Sign out", depth: 4, kind: "button" },
+  { label: "Bottom-left Layers cluster", depth: 2, kind: "surface", note: "Collapsed pill summarizing visible devices and current overlay mode. Expanded panel splits Devices (multi-select) and Data overlay (single-select)." },
+  { label: "Devices column (multi-select)", depth: 3, kind: "section" },
+  { label: "Cameras (count)", depth: 4, kind: "layer" },
+  { label: "Doors (count)", depth: 4, kind: "layer" },
+  { label: "Access readers (count)", depth: 4, kind: "layer" },
+  { label: "Sensors (count)", depth: 4, kind: "layer" },
+  { label: "Intercoms (count)", depth: 4, kind: "layer" },
+  { label: "Speakers (count)", depth: 4, kind: "layer" },
+  { label: "Alarms (count)", depth: 4, kind: "layer", note: "Disabled when count is 0." },
+  { label: "Data overlay column (single-select)", depth: 3, kind: "section" },
+  { label: "None \u2014 identity only", depth: 4, kind: "layer" },
+  { label: "Device health \u2014 markers colored by online / offline / degraded", depth: 4, kind: "layer" },
+  { label: "Coverage \u2014 FOV cones + read range", depth: 4, kind: "layer" },
+  { label: "Alerts and events \u2014 active alerts + per-device event counts", depth: 4, kind: "layer" },
+  { label: "Footer toggles", depth: 3, kind: "section" },
+  { label: "Satellite (toggle)", depth: 4, kind: "input", source: "GMaps Map type" },
+  { label: "Dark mode (toggle)", depth: 4, kind: "input" },
+  { label: "Bottom-right zoom controls", depth: 2, kind: "surface" },
+
+  // 2b. Left rail
+  { label: "Left rail (expanded via hamburger)", depth: 1, kind: "rail", note: "Icon column. Each item opens a flyout to the right of the rail." },
+  { label: "Recents (\u21BA)", depth: 2, kind: "button", source: "GMaps Recents" },
+  { label: "Locations (\u2261)", depth: 2, kind: "button", note: "Verkada-only. Top-level container for spatial entities." },
+  { label: "Collections (\u25C7)", depth: 2, kind: "button", source: "GMaps Saved" },
+  { label: "Files (\u25A4)", depth: 2, kind: "button", note: "Verkada-only. Layouts attached to Places live here." },
+  { label: "\u2699 Settings (footer)", depth: 2, kind: "button", note: "Only Viewer entry to the Settings modal. Sits below a footer divider." },
+
+  // 2c. Rail flyouts
+  { label: "Rail flyouts (one open at a time, slides out from the rail)", depth: 1, kind: "section", note: "All flyouts share the same shape: site context strip on top, filter chips, list of children." },
+  { label: "Recents flyout", depth: 2, kind: "panel", source: "GMaps Recents" },
+  { label: "Recent items list (place name, when, jump-to)", depth: 3 },
+  { label: "Locations flyout", depth: 2, kind: "panel" },
+  { label: "Compact spatial breadcrumb (Top \u203A first \u203A \u2026 \u203A parent \u203A current)", depth: 3, kind: "section" },
+  { label: "Filter chips + free-text", depth: 3, kind: "filter" },
+  { label: "Children of current node (Locations / Buildings / Floors / Areas)", depth: 3 },
+  { label: "Click child \u2192 fly-to + descend", depth: 3 },
+  { label: "Collections flyout", depth: 2, kind: "panel", source: "GMaps Saved (1:1 model)" },
+  { label: "Top list (each collection with member count + summary)", depth: 3 },
+  { label: "Detail (variant O): flat nav list of memberIds across Locations / Floors / Areas", depth: 3 },
+  { label: "Files flyout", depth: 2, kind: "panel" },
+  { label: "Files dropzone (Path A)", depth: 3, kind: "section" },
+  { label: "File list (each file with attached Place + status)", depth: 3 },
+  { label: "Bind wizard callout (file \u2192 Place attach)", depth: 3 },
+
+  // 2d. Search
+  { label: "Search active (variant J)", depth: 1, kind: "surface", source: "GMaps search-first" },
+  { label: "Search dropdown", depth: 2, kind: "panel" },
+  { label: "Filter pills: All / Devices / Entities / Places / Collections", depth: 3, kind: "filter" },
+  { label: "Mixed-entity result list", depth: 3 },
+  { label: "Site scope context (read-only here)", depth: 2, note: "Search does not change scope; scope is set explicitly via the Site picker." },
+
+  // 2e. Site picker
+  { label: "Site picker open (variant K)", depth: 1, kind: "surface", note: "Filtered to sites with map presence in the current view. Multi-select." },
+  { label: "Filter input (text)", depth: 2, kind: "input" },
+  { label: "Site rows (id, place count, checkbox)", depth: 2 },
+  { label: "Footer hint: \u201cGo to Maps setup\u201d for sites with no place presence", depth: 2 },
+
+  // 2f. Place card
+  { label: "Place card (variant G \u2014 pinned bottom-left)", depth: 1, kind: "surface" },
+  { label: "Header (last segment of breadcrumb + site badges)", depth: 2, kind: "section" },
+  { label: "Action row", depth: 2, kind: "section", source: "GMaps action row" },
+  { label: "Open in Editor (primary; only entry to editor mode)", depth: 3, kind: "button" },
+  { label: "Add to Collection (popover)", depth: 3, kind: "button", source: "GMaps Save \u2192 list picker" },
+  { label: "Share", depth: 3, kind: "button" },
+  { label: "Permissions", depth: 3, kind: "button" },
+  { label: "Nearby", depth: 3, kind: "button", source: "GMaps Nearby" },
+  { label: "Tabs (Overview / Markers / Layouts / Permissions)", depth: 2, kind: "tab" },
+  { label: "Overview", depth: 3 },
+  { label: "Markers (count) \u2014 device list scoped to this Place", depth: 3 },
+  { label: "Layouts \u2014 attached files (PDF / DWG / PNG)", depth: 3 },
+  { label: "Permissions \u2014 Sites, roles, sharing", depth: 3, note: "Verkada-only" },
+
+  // 2g. File drop flows
+  { label: "File drop flows (Path A and Path B)", depth: 1, kind: "section", note: "Two parallel ways to attach a layout file to a Place." },
+  { label: "Path A \u2014 File-first dropzone (variant L)", depth: 2, kind: "state", note: "Open Files flyout, drop the file, then pick or create a Place." },
+  { label: "Path B \u2014 Place + drag accelerator (variant M)", depth: 2, kind: "state", note: "Place card open, browser detects dragover, on-map drop hint." },
+  { label: "File attaching / aligning (variant N)", depth: 2, kind: "state", note: "Post-drop. Progress card + alignment prompt." },
+
+  // 2h. Editor handoff (transient)
+  { label: "Viewer \u2192 Editor handoff (variant H)", depth: 1, kind: "state", note: "Transient state between G and I. Place card highlights \u201cOpen in Editor\u201d. Confirms the only path into editor mode." },
+
+  // ──────────────────────────────────────────────────────────────────────
+  // 3. Editor mode
+  // ──────────────────────────────────────────────────────────────────────
+  { label: "Editor mode (variant I)", depth: 0, kind: "mode", note: "Verkada-only. Entered exclusively via \u201cOpen in Editor\u201d on a Place card. Scope = that Place. Viewer rail and alerts hidden." },
+
+  // 3a. Top bar
+  { label: "Top bar", depth: 1, kind: "section" },
+  { label: "Place breadcrumb (Org \u203A Location \u203A \u2026 \u203A Place)", depth: 2, kind: "section" },
+  { label: "Undo / Redo", depth: 2, kind: "button" },
+  { label: "Save status (clean / dirty / saving / saved)", depth: 2 },
+  { label: "Exit (returns to Place card)", depth: 2, kind: "button" },
+
+  // 3b. Toolbelt
+  { label: "Editor toolbelt (left, vertical column)", depth: 1, kind: "surface", note: "Inspired by Site Planner ProductMenu. Click a category to open its slide-out tile panel." },
+  { label: "Select (pointer / multi-select)", depth: 2, kind: "button" },
+  { label: "Devices", depth: 2, kind: "section", note: "Plot Verkada hardware. Drag a tile onto the map or click-then-click to stamp." },
+  { label: "Cameras (CD52, CD42, CD32, CB52, CY52)", depth: 3 },
+  { label: "Doors (AC42, AC62, AC72)", depth: 3 },
+  { label: "Access readers (AD32, AD33, AD34)", depth: 3 },
+  { label: "Sensors (SV11, SV23, SV25)", depth: 3 },
+  { label: "Intercoms (TD52)", depth: 3 },
+  { label: "Speakers (BS11)", depth: 3 },
+  { label: "Alarms (BX11, BX12)", depth: 3 },
+  { label: "Architecture", depth: 2, kind: "section", note: "Draw the building shell so plotted devices snap to real geometry." },
+  { label: "Wall, Doorway, Window, Elevator, Stairs, Boundary", depth: 3 },
+  { label: "Annotations", depth: 2, kind: "section", note: "Non-Verkada notes: labels, sticky notes, scoped regions." },
+  { label: "Text label, Sticky note, Region, Arrow, Pin", depth: 3 },
+  { label: "Layouts", depth: 2, kind: "section", note: "Manage the floorplan files attached to this Place." },
+  { label: "Place layout, Align, Replace, Detach, Version history", depth: 3 },
+  { label: "Measure", depth: 2, kind: "section", note: "Distance, area, and coverage simulation." },
+  { label: "Distance, Area, Coverage simulator", depth: 3 },
+  { label: "Share &amp; Permissions", depth: 2, kind: "section" },
+  { label: "Share link (internal-only; viewer or editor)", depth: 3 },
+  { label: "Permissions (inherited from Site; override per-Place)", depth: 3 },
+  { label: "Audit log (who viewed, who edited, when)", depth: 3, note: "Verkada-only" },
+  { label: "Publish revision (snapshot for distribution)", depth: 3 },
+  { label: "\u2699 Settings (toolbelt bottom group)", depth: 2, kind: "button", note: "Editor entry to the Settings modal." },
+  { label: "? Help &amp; Hotkeys (toolbelt bottom group)", depth: 2, kind: "button", note: "Opens the hotkeys modal. ? from anywhere triggers this." },
+
+  // 3c. Selection aside
+  { label: "Selection aside (right)", depth: 1, kind: "surface", note: "Inspired by Site Planner RightFloatingAside. Switches between bill of materials (nothing selected) and marker detail (one marker selected)." },
+  { label: "Bill of materials (default \u2014 no selection)", depth: 2 },
+  { label: "Marker detail (when a marker is selected)", depth: 2 },
+
+  // ──────────────────────────────────────────────────────────────────────
+  // 4. Settings modal
+  // ──────────────────────────────────────────────────────────────────────
+  { label: "Settings modal (variant P)", depth: 0, kind: "mode", note: "Reachable from the rail \u2699 in Viewer mode and the toolbelt \u2699 in Editor mode. Two-pane layout: category nav on the left, settings rows on the right." },
+  { label: "Scope filter tabs (All / User / Org admin)", depth: 1, kind: "filter", note: "Admins can switch tabs. Non-admins see org rows but they\u2019re locked." },
+  { label: "Category navigation (left pane)", depth: 1, kind: "section" },
+  { label: "Map view", depth: 2, note: "Default basemap, theme, traffic, 3D buildings, auto-rotate." },
+  { label: "Navigation", depth: 2, note: "Click-to-drag, scroll-to-zoom, default zoom, sticky site scope." },
+  { label: "Editor", depth: 2, note: "Canvas grid, grid spacing, measurement unit, snap-to-grid, snap-to-walls, autosave." },
+  { label: "Devices &amp; data", depth: 2, note: "Default device visibility, default overlay, clustering threshold." },
+  { label: "Alerts", depth: 2, note: "Notification scope, sound, silence windows." },
+  { label: "Accessibility", depth: 2, note: "Reduced motion, high-contrast pins, keyboard-only mode." },
+  { label: "Privacy &amp; data", depth: 2, note: "Retention preferences, data export, audit subscription." },
+  { label: "Hotkeys", depth: 2, note: "Per-action key bindings, palette open shortcut." },
+  { label: "Per-row metadata", depth: 1, kind: "section" },
+  { label: "Source badge (Site Planner / Google Maps / New)", depth: 2 },
+  { label: "Scope badge (User / Org admin)", depth: 2 },
+  { label: "Reset to default (per-row + reset all)", depth: 1, kind: "button" },
+
+  // ──────────────────────────────────────────────────────────────────────
+  // 5. Data model (entities the prototype operates on)
+  // ──────────────────────────────────────────────────────────────────────
+  { label: "Data model (referenced throughout; not surfaced as a screen)", depth: 0, kind: "mode", note: "Every surface above resolves down to these primitives. Cross-reference: the Verkada Maps 2.0 dictionary anchors on Tab 3." },
+  { label: "Places (spatial)", depth: 1, kind: "section" },
+  { label: "Location \u2192 Building \u2192 Floor \u2192 Area", depth: 2, note: "Strict hierarchy. Locations can also hold Areas directly (e.g. outdoor pop-ups)." },
+  { label: "Sites (RBAC, not on the map)", depth: 1, kind: "section", note: "Verkada-only. Permission bucket inherited from Command. Every Place resolves to one or more Sites." },
+  { label: "Markers (placed on Places)", depth: 1, kind: "section" },
+  { label: "Verkada devices (cameras, doors, access, sensors, intercoms, speakers, alarms)", depth: 2 },
+  { label: "Verkada entities (logical overlays)", depth: 2 },
+  { label: "Architectural (walls, doors, windows, elevators, stairs, boundaries)", depth: 2 },
+  { label: "Annotations (labels, notes, regions, arrows, pins \u2014 non-Verkada)", depth: 2 },
+  { label: "Collections (flat, non-spatial)", depth: 1, kind: "section", source: "GMaps Saved (1:1 model)", note: "Optional containers holding Locations, Buildings, Floors, Files. For grouping and sharing only. Never directly contain Sites." },
+  { label: "Layouts / Files", depth: 1, kind: "section", note: "File is the artifact (PDF, DWG, PNG). Layout is the arranged scene attached to a Place. Files can live in Collections before being placed." },
+  { label: "Data layers", depth: 1, kind: "section", note: "Composable. Devices = sources, Data overlay = output mode. Both are independently toggleable." },
+  { label: "Devices (sources, multi-select)", depth: 2 },
+  { label: "Data overlay modes (output, single-select: None / Health / Coverage / Alerts and events)", depth: 2 },
+  { label: "Basemap (Streets / Satellite + Dark toggle)", depth: 2, source: "GMaps Map type" },
 ]
 
 // ─── Tab 5: GMaps Deep Audit ──────────────────────────────────────────────────
