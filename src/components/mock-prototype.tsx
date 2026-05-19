@@ -59,8 +59,8 @@ type EntityKind =
 // ============================================================================
 
 const VARIANTS: { id: MockVariant; label: string; short: string; sub: string }[] = [
-  { id: "null-state", label: "A · Null state", short: "Null state", sub: "Map only. Hamburger top-left, Account avatar top-right (Settings lives here), floating search, Alerts cluster." },
-  { id: "rail-expanded", label: "B · Rail expanded", short: "Rail expanded", sub: "Hamburger clicked. Icon column visible. Footer Settings item below the divider." },
+  { id: "null-state", label: "A · Null state", short: "Null state", sub: "Map only. Hamburger top-left, floating search, Alerts cluster, Account avatar top-right (identity + help only)." },
+  { id: "rail-expanded", label: "B · Rail expanded", short: "Rail expanded", sub: "Hamburger clicked. Icon column visible. \u2699 Settings footer item below the divider is the only Viewer entry to Settings." },
   { id: "recents-flyout", label: "C · Recents flyout", short: "Recents", sub: "Recents list flyout, filterable, same shape as other lists." },
   { id: "locations-flyout", label: "D · Locations flyout", short: "Locations", sub: "Locations list with filter chips + free-text. Site context strip on top." },
   { id: "collections-flyout", label: "E · Collections flyout", short: "Collections", sub: "Collections list. Same shape as Locations." },
@@ -871,13 +871,16 @@ function SearchDropdown({ query, leftOffset }: { query: string; leftOffset: numb
 // ============================================================================
 
 function AccountAvatarMenu({
-  open, onToggle, onOpenSettings, onOpenHelp,
+  open, onToggle, onOpenHelp,
 }: {
   open: boolean
   onToggle: () => void
-  onOpenSettings: () => void
   onOpenHelp: () => void
 }) {
+  // Note: Settings is intentionally NOT in this menu. The avatar handles
+  // identity + help. Settings lives in the left-side rail (footer item) and
+  // in the editor toolbelt (gear button). This keeps a single canonical
+  // location per mode: rail in viewer, toolbelt in editor.
   return (
     <div className="absolute top-3.5 right-3.5 z-30">
       <button
@@ -909,16 +912,8 @@ function AccountAvatarMenu({
             </div>
           </div>
 
-          {/* Items */}
+          {/* Items - identity + help only; Settings lives in the rail. */}
           <div className="py-1 text-[12px]">
-            <button
-              onClick={() => { onToggle(); onOpenSettings() }}
-              className="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-muted/40 transition-colors"
-            >
-              <span className="size-4 text-center leading-none text-muted-foreground">⚙</span>
-              <span>Settings</span>
-              <span className="ml-auto text-[10px] text-muted-foreground/70">⌘ ,</span>
-            </button>
             <button
               onClick={() => { onToggle(); onOpenHelp() }}
               className="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-muted/40 transition-colors"
@@ -927,7 +922,6 @@ function AccountAvatarMenu({
               <span>Help &amp; hotkeys</span>
               <span className="ml-auto text-[10px] text-muted-foreground/70">?</span>
             </button>
-            <div className="h-px bg-border/40 my-1" />
             <button className="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-muted/40 transition-colors">
               <span className="size-4 text-center leading-none text-muted-foreground">◔</span>
               <span>Manage account</span>
@@ -941,6 +935,10 @@ function AccountAvatarMenu({
               <span className="size-4 text-center leading-none">→</span>
               <span>Sign out</span>
             </button>
+          </div>
+          <div className="px-3 py-2 border-t border-border/40 text-[10px] text-muted-foreground leading-snug">
+            Looking for <span className="text-foreground font-medium">Settings</span>?
+            Open the left rail (☰) and click the <span className="text-foreground font-medium">\u2699 Settings</span> footer item.
           </div>
         </div>
       )}
@@ -3487,7 +3485,7 @@ export function MockPrototype() {
                 setActiveRail(null)
                 setVariantRaw("null-state")
               }}
-              onOpenSettings={() => setSettingsOpen(true)}
+              onOpenSettings={() => setVariant("settings-open")}
             />
           )}
 
@@ -3605,7 +3603,6 @@ export function MockPrototype() {
             <AccountAvatarMenu
               open={accountMenuOpen}
               onToggle={() => setAccountMenuOpen(!accountMenuOpen)}
-              onOpenSettings={() => setSettingsOpen(true)}
               onOpenHelp={() => setHotkeysOpen(true)}
             />
           )}
@@ -3767,7 +3764,7 @@ export function MockPrototype() {
               <p><strong>Viewer &rarr; Editor handoff.</strong> The user clicked &ldquo;Open in Editor&rdquo; on a Place card. Instead of jumping straight into editor chrome, we surface a transient confirmation: the button pulses, a banner names the scope (&ldquo;Floor 3&rdquo;), and the user picks Enter editor or Cancel. This makes the boundary crossing observable and reversible. It also enforces the rule that <em>editor is always scoped to one Place</em>; there is no other way in.</p>
             )}
             {variant === "settings-open" && (
-              <p><strong>Settings is its own state.</strong> Modal layered over Viewer. Categories on the left, settings on the right, with a scope tab row (All / User / Org admin). Every row is double-tagged with its <em>scope</em> (User vs Org &middot; Admin, mirroring Site Planner&apos;s <code>lockedByOrg</code>) and its <em>origin</em> (Site Planner / Google Maps / New). Toggle the &ldquo;Maps Admin&rdquo; pill in the modal header to demo locked vs unlocked rows. Reached from: the <strong>Account avatar</strong> in the top-right (viewer), the <strong>Settings item</strong> at the bottom of the rail (viewer), and the <strong>gear button</strong> in the editor toolbelt.</p>
+              <p><strong>Settings is its own state.</strong> Modal layered over Viewer. Categories on the left, settings on the right, with a scope tab row (All / User / Org admin). Every row is double-tagged with its <em>scope</em> (User vs Org &middot; Admin, mirroring Site Planner&apos;s <code>lockedByOrg</code>) and its <em>origin</em> (Site Planner / Google Maps / New). Toggle the &ldquo;Maps Admin&rdquo; pill in the modal header to demo locked vs unlocked rows. <strong>One canonical entry per mode:</strong> the <span className="text-foreground">\u2699 Settings</span> footer item in the left rail (Viewer), and the <span className="text-foreground">\u2699</span> gear in the editor toolbelt (Editor). The Account avatar in the top-right is reserved for identity (Help, Manage account, Switch org, Sign out) and intentionally does not duplicate Settings.</p>
             )}
             {variant === "editor" && (
               <p><strong>Editor is scoped to one Place.</strong> Entry is gated: from any Place card click &ldquo;Open in Editor&rdquo; to land in the <strong>Viewer &rarr; Editor handoff</strong> state (variant H), which pulses the primary button and shows what scope you&apos;re about to commit to. Confirm to enter, cancel to stay in Viewer. The viewer rail, alerts cluster, search, and account avatar are hidden in editor. New chrome: a top center bar with breadcrumb + undo/redo + save status + exit, a left toolbelt with category buttons (Devices, Architecture, Annotations, Layouts, Measure, Share, Settings, Help) modeled on Site Planner&apos;s ProductMenu, and a right selection aside that shows BOM by default and switches to a marker detail card when a device is picked. Press the &ldquo;?&rdquo; button at the bottom of the toolbelt for the full hotkey reference, or &ldquo;\u2699&rdquo; for the full settings modal.</p>
