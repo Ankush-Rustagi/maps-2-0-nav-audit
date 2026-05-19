@@ -36,15 +36,37 @@ function AnchorH2({ id, children, className }: { id: string; children: React.Rea
   )
 }
 
-type TabId = "full" | "patterns" | "verkada" | "mock" | "gmaps-deep"
+type TabId = "prototype" | "proposed-ia" | "patterns-principles"
 
 const TABS: { id: TabId; label: string; sub: string }[] = [
-  { id: "full", label: "1 · Full audit", sub: "Surface-by-surface crosswalk" },
-  { id: "patterns", label: "2 · Patterns only", sub: "Reusable UX patterns lifted out" },
-  { id: "verkada", label: "3 · Verkada-first", sub: "Proposed Maps 2.0 left-sidebar IA" },
-  { id: "mock", label: "4 · Mock (interactive)", sub: "Click-through prototype of the Verkada-first IA" },
-  { id: "gmaps-deep", label: "5 · GMaps deep audit", sub: "Live re-audit of 5 specific Google Maps panels" },
+  { id: "prototype", label: "1 \u00b7 Maps IA Prototype", sub: "Interactive click-through of the Verkada Maps 2.0 IA \u2014 16 viewer + editor + settings states." },
+  { id: "proposed-ia", label: "2 \u00b7 Proposed IA Structure", sub: "Complete left-sidebar information architecture for Verkada Maps 2.0, derived from the Google Maps audit." },
+  { id: "patterns-principles", label: "3 \u00b7 Google Maps Patterns & Principles", sub: "TL;DR, Verkada Maps dictionary, full Google Maps surface audit, reusable UX patterns, deep panel re-audit, and decision checklist." },
 ]
+
+// Backwards-compat: old #full / #patterns / #verkada / #mock / #gmaps-deep
+// hashes still land readers on a sensible new tab. Section anchors that
+// live inside the merged patterns-principles tab also map back to it,
+// so a refresh on e.g. #audit re-opens the right tab and scrolls there.
+const HASH_ALIASES: Record<string, TabId> = {
+  // New
+  "prototype": "prototype",
+  "proposed-ia": "proposed-ia",
+  "patterns-principles": "patterns-principles",
+  // Old tab IDs
+  "mock": "prototype",
+  "verkada": "proposed-ia",
+  "full": "patterns-principles",
+  "patterns": "patterns-principles",
+  "gmaps-deep": "patterns-principles",
+  // In-tab section anchors on patterns-principles
+  "tldr": "patterns-principles",
+  "dictionary": "patterns-principles",
+  "audit": "patterns-principles",
+  "decisions": "patterns-principles",
+  "decision-checklist": "patterns-principles",
+  "gmaps-panels": "patterns-principles",
+}
 
 function VerdictBadge({ verdict }: { verdict: Verdict }) {
   return (
@@ -96,7 +118,7 @@ const AUDIT_COLUMNS: ColumnDef<typeof FULL_AUDIT_ROWS[0], unknown>[] = [
   },
 ]
 
-function TabFull() {
+function FullAuditSection() {
   const [filter, setFilter] = useState<Verdict | "all">("all")
   const counts = { adopt: 0, adapt: 0, reject: 0, new: 0 } as Record<Verdict, number>
   FULL_AUDIT_ROWS.forEach(r => counts[r.verdict]++)
@@ -106,13 +128,8 @@ function TabFull() {
     : [{ id: "verdict", value: filter }]
 
   return (
-    <div className="space-y-6">
-      {/* Overview: TL;DR + Verkada Maps 2.0 dictionary anchors.
-          Lives at the top of Tab 1 so the navigation pills can sit
-          directly under the page header. */}
-      <TldrCard items={TLDR_ITEMS} className="mb-0" />
-      <DictionaryAnchor />
-
+    <section className="space-y-6 scroll-mt-6">
+      <AnchorH2 id="audit">Full surface audit</AnchorH2>
       <Callout variant="info" title="What this is">
         Every Google Maps left-sidebar surface mapped 1:1 to a Verkada Maps 2.0 equivalent. Verdict tells you whether to lift the pattern as-is, adapt it, drop it, or recognize it as Verkada-specific net-new.
       </Callout>
@@ -150,11 +167,11 @@ function TabFull() {
         showSearch
         searchPlaceholder="Search surfaces, verdicts, rationale…"
       />
-    </div>
+    </section>
   )
 }
 
-// ─── Tab 2 ───────────────────────────────────────────────────────────────────
+// ─── Patterns section ────────────────────────────────────────────────────────
 
 const PRIORITY_COLOR: Record<string, string> = {
   P0: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
@@ -169,10 +186,11 @@ const PRIORITY_BORDER: Record<string, string> = {
   P2: "border-l-[3px] border-l-neutral-500/50",
 }
 
-function TabPatterns() {
+function PatternsSection() {
   const allNames = useMemo(() => PATTERNS.map(p => p.name), [])
-  // All expanded by default
-  const [open, setOpen] = useState<Set<string>>(() => new Set(allNames))
+  // Default collapsed in the merged Patterns & Principles tab so the
+  // section is scannable; users expand the ones they care about.
+  const [open, setOpen] = useState<Set<string>>(() => new Set())
   const allOpen = open.size === PATTERNS.length
 
   const p0 = PATTERNS.filter(p => p.priority === "P0").length
@@ -191,7 +209,8 @@ function TabPatterns() {
   }
 
   return (
-    <div className="space-y-6">
+    <section className="space-y-6 scroll-mt-6">
+      <AnchorH2 id="patterns">Reusable UX patterns</AnchorH2>
       <Callout variant="info" title="What this is">
         Reusable UX patterns underneath the Google Maps IA, lifted out of surface-specific context. Each has a Verkada application, priority, and the panels it applies to. Build P0 patterns first — they compound across the entire product.
       </Callout>
@@ -264,11 +283,11 @@ function TabPatterns() {
           )
         })}
       </div>
-    </div>
+    </section>
   )
 }
 
-// ─── Tab 3 ───────────────────────────────────────────────────────────────────
+// ─── Proposed IA section (was Tab 3) ─────────────────────────────────────────
 
 const KIND_COLOR: Record<string, string> = {
   rail: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30",
@@ -333,7 +352,7 @@ function NavTreeNode({ node, isExpanded, hasChildren, onToggle }: {
   )
 }
 
-function TabVerkada() {
+function TabProposedIA() {
   // maxDepth controls which depth levels are visible (0 = root only, 99 = all)
   const [maxDepth, setMaxDepth] = useState<number>(99)
   // Per-node individual collapse (on top of maxDepth)
@@ -438,31 +457,37 @@ function TabMock() {
   return <MockPrototype />
 }
 
-// ─── Tab 5 ───────────────────────────────────────────────────────────────────
+// ─── GMaps deep + decision sections ──────────────────────────────────────────
 
-function TabGMapsDeep() {
-  const HEADLINES = [
-    "Google gates almost everything personalized behind sign-in. We do not need to. Verkada users are already authenticated. Use that to show full state on first open.",
-    "Place detail is the most information-dense surface in Maps and fully public. Hero + action bar + tabbed body is the pattern to copy for the Verkada Place card.",
-    "Search autocomplete is plain text with mixed result types. No category icons. Verkada should add type icons because our result kinds are more heterogeneous.",
-    "'Suggest an edit' is buried. Our analog (file-creates-Place) is a primary onboarding moment; prominence should invert: dropzone + on-map dragover, not a hidden button.",
-    "Hours, price, reviews all use inline accordions, not modals. Verkada Place card should follow: collapse dense sections inline.",
-  ]
+const GMAPS_HEADLINES: string[] = [
+  "Google gates almost everything personalized behind sign-in. We do not need to. Verkada users are already authenticated. Use that to show full state on first open.",
+  "Place detail is the most information-dense surface in Maps and fully public. Hero + action bar + tabbed body is the pattern to copy for the Verkada Place card.",
+  "Search autocomplete is plain text with mixed result types. No category icons. Verkada should add type icons because our result kinds are more heterogeneous.",
+  "'Suggest an edit' is buried. Our analog (file-creates-Place) is a primary onboarding moment; prominence should invert: dropzone + on-map dragover, not a hidden button.",
+  "Hours, price, reviews all use inline accordions, not modals. Verkada Place card should follow: collapse dense sections inline.",
+]
 
+const DECISION_CHECKLIST: string[] = [
+  "Keep Collections at top-level in the left rail (Panel 1).",
+  "Do not introduce a 'Your Places' aggregate. Recents + Collections + Site scope cover the same jobs (Panel 2).",
+  "Search dropdown: add category icons per result type and group results by kind (Panel 3).",
+  "Place card adopts hero + action bar + tabbed body. Add copy-to-clipboard for IDs (Panel 4).",
+  "File-creates-Place is primary, not buried. Implemented via Files flyout dropzone (Path A) and on-map dragover (Path B) (Panel 5).",
+  "No locked decisions conflict with the audit. Site separation, rail order, Editor-only-from-Place, and Permissions demotion all stand.",
+]
+
+function GMapsDeepSection() {
   return (
-    <div className="space-y-6">
-      <div>
-        <AnchorH2 id="gmaps-panels">GMaps panels deep audit</AnchorH2>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Focused live re-audit of five Google Maps panels. Each card pairs Google's concrete behavior with a Verkada verdict. Three of the five panels were sign-in gated; public surface is what we have to work from.
-        </p>
-      </div>
+    <section className="space-y-6 scroll-mt-6">
+      <AnchorH2 id="gmaps-deep">Google Maps deep panel audit</AnchorH2>
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        Focused live re-audit of five Google Maps panels. Each card pairs Google&apos;s concrete behavior with a Verkada verdict. Three of the five panels were sign-in gated; public surface is what we have to work from.
+      </p>
 
       <div className="rounded-xl border border-sky-500/30 bg-sky-500/10 p-5">
         <div className="text-xs font-semibold text-sky-300 uppercase tracking-wider mb-3">5 things to remember</div>
-
         <ol className="space-y-2">
-          {HEADLINES.map((h, i) => (
+          {GMAPS_HEADLINES.map((h, i) => (
             <li key={i} className="flex gap-3 text-sm text-sky-200/80">
               <span className="shrink-0 text-sky-400 font-bold">{i + 1}.</span>
               {h}
@@ -515,25 +540,27 @@ function TabGMapsDeep() {
           </div>
         ))}
       </div>
+    </section>
+  )
+}
 
+function DecisionChecklistSection() {
+  return (
+    <section className="space-y-4 scroll-mt-6">
+      <AnchorH2 id="decisions">Decision checklist</AnchorH2>
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        How the audit translated into the current mock prototype. Cross-reference each line item to its Panel in the deep audit above.
+      </p>
       <div className="rounded-xl border border-border bg-card p-5">
-        <AnchorH2 id="decision-checklist" className="text-base mt-0 mb-3">Decision checklist (maps to mock v3 changes)</AnchorH2>
         <ul className="space-y-2">
-          {[
-            "Keep Collections at top-level in the left rail (Panel 1).",
-            "Do not introduce a 'Your Places' aggregate. Recents + Collections + Site scope cover the same jobs (Panel 2).",
-            "Search dropdown: add category icons per result type and group results by kind (Panel 3).",
-            "Place card adopts hero + action bar + tabbed body. Add copy-to-clipboard for IDs (Panel 4).",
-            "File-creates-Place is primary, not buried. Implemented via Files flyout dropzone (Path A) and on-map dragover (Path B) (Panel 5).",
-            "No locked decisions conflict with the audit. Site separation, rail order, Editor-only-from-Place, and Permissions demotion all stand.",
-          ].map((item, i) => (
+          {DECISION_CHECKLIST.map((item, i) => (
             <li key={i} className="flex gap-2 text-sm text-muted-foreground">
               <span className="shrink-0 text-emerald-400 font-bold">✓</span>{item}
             </li>
           ))}
         </ul>
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -563,29 +590,144 @@ function DictionaryAnchor() {
   )
 }
 
+// ─── Patterns & Principles tab (merged) ──────────────────────────────────────
+
+// Anchor IDs map onto the sections rendered inside TabPatternsPrinciples.
+// Section anchors that live outside the tab body (#audit, #patterns,
+// #gmaps-deep, #decisions, #tldr, #dictionary) all live on this tab.
+const PRINCIPLES_TOC: { id: string; label: string }[] = [
+  { id: "tldr", label: "TL;DR" },
+  { id: "dictionary", label: "Verkada Maps dictionary" },
+  { id: "audit", label: "Full surface audit" },
+  { id: "patterns", label: "Reusable UX patterns" },
+  { id: "gmaps-deep", label: "Google Maps deep panel audit" },
+  { id: "decisions", label: "Decision checklist" },
+]
+
+function PrinciplesTOC() {
+  function jumpTo(id: string) {
+    const el = document.getElementById(id)
+    if (!el) return
+    el.scrollIntoView({ behavior: "smooth", block: "start" })
+    history.replaceState(null, "", `#${id}`)
+  }
+  return (
+    <nav
+      aria-label="On this page"
+      className="rounded-xl border border-border bg-card/60 p-4 lg:sticky lg:top-4"
+    >
+      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+        On this page
+      </div>
+      <ol className="space-y-1.5">
+        {PRINCIPLES_TOC.map((t, i) => (
+          <li key={t.id}>
+            <button
+              onClick={() => jumpTo(t.id)}
+              className="w-full text-left text-sm text-muted-foreground hover:text-foreground transition-colors flex gap-2"
+            >
+              <span className="shrink-0 text-muted-foreground/50 tabular-nums">{i + 1}.</span>
+              <span>{t.label}</span>
+            </button>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  )
+}
+
+function TldrSection() {
+  return (
+    <section className="space-y-3 scroll-mt-6">
+      <AnchorH2 id="tldr">TL;DR</AnchorH2>
+      <TldrCard items={TLDR_ITEMS} className="mb-0" />
+    </section>
+  )
+}
+
+function DictionarySection() {
+  return (
+    <section className="scroll-mt-6">
+      <DictionaryAnchor />
+    </section>
+  )
+}
+
+function TabPatternsPrinciples() {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[14rem_minmax(0,1fr)] gap-6 lg:gap-8">
+      <aside className="lg:block">
+        <PrinciplesTOC />
+      </aside>
+      <div className="space-y-12 min-w-0">
+        <TldrSection />
+        <DictionarySection />
+        <FullAuditSection />
+        <PatternsSection />
+        <GMapsDeepSection />
+        <DecisionChecklistSection />
+      </div>
+    </div>
+  )
+}
+
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
-const VALID_TABS: TabId[] = ["full", "patterns", "verkada", "mock", "gmaps-deep"]
+const VALID_TABS: TabId[] = ["prototype", "proposed-ia", "patterns-principles"]
+
+function resolveTab(rawHash: string): TabId {
+  const key = rawHash.replace(/^#/, "")
+  if ((VALID_TABS as string[]).includes(key)) return key as TabId
+  if (key in HASH_ALIASES) return HASH_ALIASES[key]
+  return "prototype"
+}
+
+// Section anchors that live inside a specific tab. When a user lands on
+// one of these via URL hash, we both route to the parent tab and scroll
+// to the section after render.
+const SECTION_ANCHORS = new Set<string>([
+  "tldr",
+  "dictionary",
+  "audit",
+  "patterns",
+  "gmaps-deep",
+  "gmaps-panels",
+  "decisions",
+  "decision-checklist",
+])
 
 export default function App() {
-  const [tab, setTab] = useState<TabId>(() => {
-    const hash = window.location.hash.slice(1) as TabId
-    return VALID_TABS.includes(hash) ? hash : "full"
-  })
+  const [tab, setTab] = useState<TabId>(() => resolveTab(window.location.hash))
   const current = useMemo(() => TABS.find(t => t.id === tab), [tab])
 
   useEffect(() => {
     function onHashChange() {
-      const hash = window.location.hash.slice(1) as TabId
-      if (VALID_TABS.includes(hash)) setTab(hash)
+      const key = window.location.hash.replace(/^#/, "")
+      if ((VALID_TABS as string[]).includes(key) || key in HASH_ALIASES) {
+        setTab(resolveTab(window.location.hash))
+      }
     }
     window.addEventListener("hashchange", onHashChange)
     return () => window.removeEventListener("hashchange", onHashChange)
   }, [])
 
+  // On initial mount or whenever the tab changes due to a section
+  // anchor in the URL, scroll the section into view once the new
+  // tab content is rendered.
+  useEffect(() => {
+    const key = window.location.hash.replace(/^#/, "")
+    if (!SECTION_ANCHORS.has(key)) return
+    const id = setTimeout(() => {
+      const el = document.getElementById(key)
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" })
+    }, 50)
+    return () => clearTimeout(id)
+  }, [tab])
+
   function changeTab(id: TabId) {
     setTab(id)
     history.pushState(null, "", `#${id}`)
+    window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   return (
@@ -620,11 +762,9 @@ export default function App() {
         </nav>
         {current && <p className="text-sm text-muted-foreground mb-6">{current.sub}</p>}
 
-        {tab === "full" && <TabFull />}
-        {tab === "patterns" && <TabPatterns />}
-        {tab === "verkada" && <TabVerkada />}
-        {tab === "mock" && <TabMock />}
-        {tab === "gmaps-deep" && <TabGMapsDeep />}
+        {tab === "prototype" && <TabMock />}
+        {tab === "proposed-ia" && <TabProposedIA />}
+        {tab === "patterns-principles" && <TabPatternsPrinciples />}
 
         <DataSources
           sources={[
