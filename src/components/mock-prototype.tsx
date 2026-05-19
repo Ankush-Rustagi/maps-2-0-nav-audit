@@ -57,7 +57,7 @@ type EntityKind =
 // ============================================================================
 
 const VARIANTS: { id: MockVariant; label: string; short: string; sub: string }[] = [
-  { id: "null-state", label: "A · Null state", short: "Null state", sub: "Map only. Hamburger + floating search + Alerts overlay." },
+  { id: "null-state", label: "A · Null state", short: "Null state", sub: "Map only. Hamburger + Settings cog + floating search + Alerts overlay." },
   { id: "rail-expanded", label: "B · Rail expanded", short: "Rail expanded", sub: "Hamburger clicked. Icon column visible." },
   { id: "recents-flyout", label: "C · Recents flyout", short: "Recents", sub: "Recents list flyout, filterable, same shape as other lists." },
   { id: "locations-flyout", label: "D · Locations flyout", short: "Locations", sub: "Locations list with filter chips + free-text. Site context strip on top." },
@@ -722,11 +722,12 @@ function HamburgerButton({ onClick }: { onClick: () => void }) {
 }
 
 function FloatingRail({
-  active, onPick, onClose,
+  active, onPick, onClose, onOpenSettings,
 }: {
   active: RailItem | null
   onPick: (id: RailItem) => void
   onClose: () => void
+  onOpenSettings: () => void
 }) {
   return (
     <div className="absolute top-3.5 left-3.5 z-30 w-14 rounded-lg bg-card/95 border border-border flex flex-col items-center py-1.5 gap-0.5">
@@ -755,6 +756,15 @@ function FloatingRail({
           </button>
         )
       })}
+      <div className="w-9 h-px bg-border/60 my-0.5" />
+      <button
+        onClick={onOpenSettings}
+        title="Settings"
+        className="w-12 h-12 flex flex-col items-center justify-center cursor-pointer rounded-md gap-0.5 transition-colors text-muted-foreground hover:bg-muted/50"
+      >
+        <span className="text-base leading-none">⚙</span>
+        <span className="text-[8.5px] tracking-wide">Settings</span>
+      </button>
     </div>
   )
 }
@@ -1622,6 +1632,648 @@ function FloatingPlaceCard({
 }
 
 // ============================================================================
+// Settings (preferences)
+// Superset of Site Planner's preferences (apps/site-planner/src/constants/
+// preferences.ts: ClickToDrag, ScrollToZoom, ShowGridBackground,
+// MeasurementUnit, ShowPricing) plus map-view, navigation, alerts,
+// accessibility, and account preferences modeled on Google Maps' settings
+// surface. The runtime modal mirrors Site Planner's two-pane layout: vertical
+// category nav on the left, setting rows on the right, reset-to-defaults
+// + Done in the footer.
+// ============================================================================
+
+type SettingsCategoryId =
+  | "map-view"
+  | "navigation"
+  | "editor"
+  | "devices-data"
+  | "alerts"
+  | "sharing-bom"
+  | "accessibility"
+  | "account"
+
+type SettingControl =
+  | { kind: "toggle"; value: boolean }
+  | { kind: "select"; value: string; options: { id: string; label: string }[] }
+
+type SettingRow = {
+  id: string
+  label: string
+  helper: string
+  source?: "site-planner" | "google-maps" | "new"
+  control: SettingControl
+}
+
+type SettingsCategory = {
+  id: SettingsCategoryId
+  label: string
+  glyph: string
+  helper: string
+  rows: SettingRow[]
+}
+
+const SETTINGS_DATA: SettingsCategory[] = [
+  {
+    id: "map-view",
+    label: "Map view",
+    glyph: "▤",
+    helper: "Defaults for how the map renders when you open Command.",
+    rows: [
+      {
+        id: "default-basemap",
+        label: "Default basemap",
+        helper: "Honored on every fresh session.",
+        source: "google-maps",
+        control: {
+          kind: "select",
+          value: "streets",
+          options: [
+            { id: "streets", label: "Streets" },
+            { id: "satellite", label: "Satellite" },
+            { id: "hybrid", label: "Hybrid (satellite + labels)" },
+          ],
+        },
+      },
+      {
+        id: "dark-mode",
+        label: "Theme",
+        helper: "System follows OS preference.",
+        source: "google-maps",
+        control: {
+          kind: "select",
+          value: "system",
+          options: [
+            { id: "system", label: "System" },
+            { id: "light", label: "Light" },
+            { id: "dark", label: "Dark" },
+          ],
+        },
+      },
+      {
+        id: "show-traffic",
+        label: "Show traffic by default",
+        helper: "Real-time traffic layer for outdoor sites near roads.",
+        source: "google-maps",
+        control: { kind: "toggle", value: false },
+      },
+      {
+        id: "show-3d",
+        label: "Show 3D buildings",
+        helper: "Hover-elevation in supported regions. Adds GPU cost.",
+        source: "google-maps",
+        control: { kind: "toggle", value: true },
+      },
+      {
+        id: "rotate-to-north",
+        label: "Auto-rotate to north on idle",
+        helper: "Snaps the heading back to north after 5s of no input.",
+        source: "new",
+        control: { kind: "toggle", value: false },
+      },
+    ],
+  },
+  {
+    id: "navigation",
+    label: "Navigation",
+    glyph: "✥",
+    helper: "How the mouse and keyboard move you around the map.",
+    rows: [
+      {
+        id: "click-to-drag",
+        label: "Click to drag",
+        helper: "When on, click + drag pans. When off, click + drag lassos. Hold Space to invert.",
+        source: "site-planner",
+        control: { kind: "toggle", value: false },
+      },
+      {
+        id: "scroll-to-zoom",
+        label: "Scroll to zoom",
+        helper: "On for mouse users. Off for trackpad pan-and-pinch.",
+        source: "site-planner",
+        control: { kind: "toggle", value: true },
+      },
+      {
+        id: "default-zoom",
+        label: "Default zoom on open",
+        helper: "Honored when no Place is in the URL.",
+        source: "new",
+        control: {
+          kind: "select",
+          value: "site",
+          options: [
+            { id: "world", label: "World view" },
+            { id: "region", label: "Region (last viewed)" },
+            { id: "site", label: "Site (last viewed)" },
+            { id: "place", label: "Place (last viewed)" },
+          ],
+        },
+      },
+      {
+        id: "sticky-site",
+        label: "Sticky site scope between sessions",
+        helper: "Reopens Command with the last selected Site.",
+        source: "new",
+        control: { kind: "toggle", value: true },
+      },
+    ],
+  },
+  {
+    id: "editor",
+    label: "Editor",
+    glyph: "✎",
+    helper: "Defaults inside the floorplan editor. Mirrors Site Planner preferences and adds Maps 2.0 controls.",
+    rows: [
+      {
+        id: "show-grid",
+        label: "Show canvas grid",
+        helper: "Grid every 10 ft. Off for a clean view.",
+        source: "site-planner",
+        control: { kind: "toggle", value: true },
+      },
+      {
+        id: "grid-spacing",
+        label: "Grid spacing",
+        helper: "Honored when grid is on.",
+        source: "new",
+        control: {
+          kind: "select",
+          value: "10ft",
+          options: [
+            { id: "5ft", label: "5 ft" },
+            { id: "10ft", label: "10 ft" },
+            { id: "20ft", label: "20 ft" },
+            { id: "1m", label: "1 m" },
+            { id: "2m", label: "2 m" },
+          ],
+        },
+      },
+      {
+        id: "measurement-unit",
+        label: "Measurement unit",
+        helper: "Drives the ruler, area, and grid spacing readouts.",
+        source: "site-planner",
+        control: {
+          kind: "select",
+          value: "feet",
+          options: [
+            { id: "feet", label: "Feet" },
+            { id: "meters", label: "Meters" },
+          ],
+        },
+      },
+      {
+        id: "snap-grid",
+        label: "Snap to grid",
+        helper: "All plotting and drawing snaps to grid intersections.",
+        source: "new",
+        control: { kind: "toggle", value: true },
+      },
+      {
+        id: "snap-walls",
+        label: "Snap to walls",
+        helper: "Doors and windows snap to wall midpoints.",
+        source: "new",
+        control: { kind: "toggle", value: true },
+      },
+      {
+        id: "autosave",
+        label: "Auto-save interval",
+        helper: "Manual save is always available via \u2318S.",
+        source: "new",
+        control: {
+          kind: "select",
+          value: "1m",
+          options: [
+            { id: "off", label: "Off" },
+            { id: "30s", label: "30 seconds" },
+            { id: "1m", label: "1 minute" },
+            { id: "5m", label: "5 minutes" },
+          ],
+        },
+      },
+      {
+        id: "confirm-delete",
+        label: "Confirm before delete",
+        helper: "Adds a confirm step when removing markers, walls, or layouts.",
+        source: "new",
+        control: { kind: "toggle", value: true },
+      },
+      {
+        id: "show-cones",
+        label: "Show coverage cones by default",
+        helper: "Camera FOV cones render on every Place open.",
+        source: "new",
+        control: { kind: "toggle", value: false },
+      },
+    ],
+  },
+  {
+    id: "devices-data",
+    label: "Devices & data",
+    glyph: "◉",
+    helper: "Defaults for what the map shows on open: devices and the active data overlay.",
+    rows: [
+      {
+        id: "default-vis",
+        label: "Default device visibility",
+        helper: "Honored when no per-Place override is set.",
+        source: "new",
+        control: {
+          kind: "select",
+          value: "all",
+          options: [
+            { id: "all", label: "All devices" },
+            { id: "cameras-only", label: "Cameras only" },
+            { id: "access-only", label: "Access only" },
+            { id: "off", label: "Off (markers hidden)" },
+          ],
+        },
+      },
+      {
+        id: "default-overlay",
+        label: "Default data overlay",
+        helper: "Mirrors the bottom-left Layers cluster.",
+        source: "new",
+        control: {
+          kind: "select",
+          value: "none",
+          options: [
+            { id: "none", label: "None" },
+            { id: "health", label: "Device health" },
+            { id: "coverage", label: "Coverage" },
+            { id: "alerts", label: "Alerts" },
+            { id: "events", label: "Events" },
+          ],
+        },
+      },
+      {
+        id: "labels-at-low-zoom",
+        label: "Show device labels at low zoom",
+        helper: "Adds device names to markers when zoomed out. Off keeps the map clean.",
+        source: "google-maps",
+        control: { kind: "toggle", value: false },
+      },
+      {
+        id: "color-by-status",
+        label: "Color devices by status",
+        helper: "Online green, degraded amber, offline red. Off uses brand colors.",
+        source: "new",
+        control: { kind: "toggle", value: true },
+      },
+    ],
+  },
+  {
+    id: "alerts",
+    label: "Alerts",
+    glyph: "◇",
+    helper: "How alerts surface inside the map and the alerts cluster.",
+    rows: [
+      {
+        id: "default-filter",
+        label: "Default alert filter",
+        helper: "Honored when you open the alerts cluster.",
+        source: "new",
+        control: {
+          kind: "select",
+          value: "unack",
+          options: [
+            { id: "all", label: "All alerts" },
+            { id: "unack", label: "Unacknowledged" },
+            { id: "mine", label: "Assigned to me" },
+            { id: "critical", label: "Critical only" },
+          ],
+        },
+      },
+      {
+        id: "sound-on-new",
+        label: "Sound on new alert",
+        helper: "Plays a short chime when a new alert lands while Command is open.",
+        source: "google-maps",
+        control: { kind: "toggle", value: false },
+      },
+      {
+        id: "autozoom-new",
+        label: "Auto-zoom to new alert",
+        helper: "Pans the map to a new critical alert when one fires.",
+        source: "new",
+        control: { kind: "toggle", value: false },
+      },
+    ],
+  },
+  {
+    id: "sharing-bom",
+    label: "Sharing & BoM",
+    glyph: "⤴",
+    helper: "Pricing visibility, share defaults, and export branding.",
+    rows: [
+      {
+        id: "show-pricing",
+        label: "Show pricing",
+        helper: "MSRP throughout the editor and exports. Off hides it everywhere.",
+        source: "site-planner",
+        control: { kind: "toggle", value: true },
+      },
+      {
+        id: "default-share-scope",
+        label: "Default share scope",
+        helper: "Initial value of the share dialog. Can be overridden per share.",
+        source: "new",
+        control: {
+          kind: "select",
+          value: "site",
+          options: [
+            { id: "org", label: "Org-wide" },
+            { id: "site", label: "Site members" },
+            { id: "place", label: "Place collaborators" },
+          ],
+        },
+      },
+      {
+        id: "watermark",
+        label: "Watermark exported floorplans",
+        helper: "Stamps org name and \u201cVerkada confidential\u201d on PDF exports.",
+        source: "new",
+        control: { kind: "toggle", value: true },
+      },
+    ],
+  },
+  {
+    id: "accessibility",
+    label: "Accessibility",
+    glyph: "◐",
+    helper: "Visual, motor, and motion preferences.",
+    rows: [
+      {
+        id: "high-contrast",
+        label: "High-contrast mode",
+        helper: "Boosts foreground / background contrast on all chrome.",
+        source: "new",
+        control: { kind: "toggle", value: false },
+      },
+      {
+        id: "reduce-motion",
+        label: "Reduce motion",
+        helper: "Honors prefers-reduced-motion. Disables map fly-to and panel slide animations.",
+        source: "google-maps",
+        control: { kind: "toggle", value: false },
+      },
+      {
+        id: "large-targets",
+        label: "Larger touch targets",
+        helper: "Adds padding to all buttons and rail items. Useful on touch and assistive devices.",
+        source: "new",
+        control: { kind: "toggle", value: false },
+      },
+      {
+        id: "focus-rings",
+        label: "Keyboard-first focus rings",
+        helper: "Bright focus rings on every interactive element when tabbing.",
+        source: "new",
+        control: { kind: "toggle", value: true },
+      },
+    ],
+  },
+  {
+    id: "account",
+    label: "Account",
+    glyph: "◔",
+    helper: "Locale, units, and the global reset switch.",
+    rows: [
+      {
+        id: "language",
+        label: "Language",
+        helper: "Falls back to English when a string is untranslated.",
+        source: "google-maps",
+        control: {
+          kind: "select",
+          value: "en-US",
+          options: [
+            { id: "en-US", label: "English (US)" },
+            { id: "en-GB", label: "English (UK)" },
+            { id: "es-ES", label: "Espa\u00f1ol" },
+            { id: "fr-FR", label: "Fran\u00e7ais" },
+            { id: "de-DE", label: "Deutsch" },
+            { id: "ja-JP", label: "\u65e5\u672c\u8a9e" },
+          ],
+        },
+      },
+      {
+        id: "time-format",
+        label: "Time format",
+        helper: "Applies to all timestamps in Command.",
+        source: "new",
+        control: {
+          kind: "select",
+          value: "12h",
+          options: [
+            { id: "12h", label: "12-hour (1:30 PM)" },
+            { id: "24h", label: "24-hour (13:30)" },
+          ],
+        },
+      },
+      {
+        id: "distance-units",
+        label: "Distance &amp; area units",
+        helper: "Drives all readouts outside the editor. Editor unit is separate.",
+        source: "site-planner",
+        control: {
+          kind: "select",
+          value: "imperial",
+          options: [
+            { id: "imperial", label: "Imperial (ft, mi, sq ft)" },
+            { id: "metric", label: "Metric (m, km, sq m)" },
+          ],
+        },
+      },
+    ],
+  },
+]
+
+function SettingRowView({
+  row, value, onChange,
+}: {
+  row: SettingRow
+  value: boolean | string
+  onChange: (v: boolean | string) => void
+}) {
+  return (
+    <div className="py-3 first:pt-1 border-b border-border/40 last:border-0">
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[12px] font-semibold">{row.label.replace(/&amp;/g, "&")}</span>
+            {row.source && (
+              <span
+                className={cn(
+                  "text-[9px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded border",
+                  row.source === "site-planner" && "border-sky-500/40 text-sky-300 bg-sky-500/10",
+                  row.source === "google-maps" && "border-emerald-500/40 text-emerald-300 bg-emerald-500/10",
+                  row.source === "new" && "border-amber-500/40 text-amber-300 bg-amber-500/10",
+                )}
+              >
+                {row.source === "site-planner" ? "Site Planner" : row.source === "google-maps" ? "Google Maps" : "New"}
+              </span>
+            )}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{row.helper}</div>
+        </div>
+        <div className="shrink-0 mt-0.5">
+          {row.control.kind === "toggle" ? (
+            <button
+              type="button"
+              onClick={() => onChange(!(value as boolean))}
+              role="switch"
+              aria-checked={value as boolean}
+              className={cn(
+                "relative w-10 h-5 rounded-full transition-colors",
+                value ? "bg-sky-500" : "bg-muted",
+              )}
+            >
+              <span
+                className={cn(
+                  "absolute top-0.5 size-4 rounded-full bg-white transition-transform",
+                  value ? "translate-x-[20px]" : "translate-x-0.5",
+                )}
+              />
+            </button>
+          ) : (
+            <select
+              value={value as string}
+              onChange={e => onChange(e.target.value)}
+              className="rounded-md border border-border bg-card/80 px-2 py-1 text-[11px] focus:outline-none focus:ring-2 focus:ring-sky-500/40 max-w-[180px]"
+            >
+              {row.control.options.map(o => (
+                <option key={o.id} value={o.id}>{o.label}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SettingsModal({ onClose }: { onClose: () => void }) {
+  const [activeCat, setActiveCat] = useState<SettingsCategoryId>(SETTINGS_DATA[0].id)
+  const [values, setValues] = useState<Record<string, boolean | string>>(() => {
+    const v: Record<string, boolean | string> = {}
+    SETTINGS_DATA.forEach(cat => cat.rows.forEach(r => {
+      v[r.id] = r.control.kind === "toggle" ? r.control.value : r.control.value
+    }))
+    return v
+  })
+
+  const reset = () => {
+    const v: Record<string, boolean | string> = {}
+    SETTINGS_DATA.forEach(cat => cat.rows.forEach(r => {
+      v[r.id] = r.control.kind === "toggle" ? r.control.value : r.control.value
+    }))
+    setValues(v)
+  }
+
+  const cat = SETTINGS_DATA.find(c => c.id === activeCat)!
+  const totalRows = SETTINGS_DATA.reduce((n, c) => n + c.rows.length, 0)
+
+  return (
+    <div className="absolute inset-0 z-50 bg-black/55 flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-3xl max-h-full overflow-hidden flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="px-4 py-3 border-b border-border/50 flex items-center gap-2">
+          <span className="text-sm font-semibold">Settings</span>
+          <span className="text-[11px] text-muted-foreground">{totalRows} preferences across {SETTINGS_DATA.length} categories</span>
+          <button onClick={onClose} className="ml-auto">
+            <Pill size="sm">✕</Pill>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-hidden grid" style={{ gridTemplateColumns: "180px 1fr" }}>
+          {/* Vertical category nav (Site Planner pattern) */}
+          <nav className="border-r border-border/50 p-2 overflow-y-auto" aria-label="Settings categories">
+            <ul className="flex flex-col gap-0.5">
+              {SETTINGS_DATA.map(c => {
+                const isActive = c.id === activeCat
+                return (
+                  <li key={c.id}>
+                    <button
+                      onClick={() => setActiveCat(c.id)}
+                      className={cn(
+                        "w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-md text-[12px] transition-colors",
+                        isActive
+                          ? "bg-sky-500/15 text-sky-100 border border-sky-500/40"
+                          : "border border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                      )}
+                    >
+                      <span className={cn("text-sm leading-none", isActive ? "text-sky-300" : "text-muted-foreground/70")}>
+                        {c.glyph}
+                      </span>
+                      <span className="truncate">{c.label}</span>
+                      <span className="ml-auto text-[10px] text-muted-foreground/60">{c.rows.length}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </nav>
+
+          {/* Setting rows */}
+          <div className="overflow-y-auto p-4">
+            <div className="mb-3">
+              <h3 className="text-sm font-semibold">{cat.label.replace(/&amp;/g, "&")}</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{cat.helper}</p>
+            </div>
+            <div className="flex flex-col">
+              {cat.rows.map(row => (
+                <SettingRowView
+                  key={row.id}
+                  row={row}
+                  value={values[row.id]}
+                  onChange={v => setValues(prev => ({ ...prev, [row.id]: v }))}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="px-4 py-3 border-t border-border/50 flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground">
+            Legend:
+          </span>
+          <span className="text-[9px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded border border-sky-500/40 text-sky-300 bg-sky-500/10">Site Planner</span>
+          <span className="text-[9px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded border border-emerald-500/40 text-emerald-300 bg-emerald-500/10">Google Maps</span>
+          <span className="text-[9px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded border border-amber-500/40 text-amber-300 bg-amber-500/10">New</span>
+          <button
+            onClick={reset}
+            className="ml-auto rounded-md border border-border bg-muted/40 hover:bg-muted/60 px-3 py-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Reset to defaults
+          </button>
+          <button
+            onClick={onClose}
+            className="rounded-md border border-sky-500/40 bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 px-3 py-1 text-[11px] font-medium transition-colors"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SettingsCogButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      title="Settings"
+      className="absolute top-3.5 left-14 z-30 size-9 rounded-md bg-card/95 border border-border flex items-center justify-center text-base hover:bg-card transition-colors"
+    >
+      ⚙
+    </button>
+  )
+}
+
+// ============================================================================
 // Editor overlays (modeled on apps/site-planner/src/components/editor/ui/)
 // - EditorToolbelt mirrors ProductMenu: vertical column of category buttons
 //   with a slide-out tile panel. Categories cover the full set of editor
@@ -1643,6 +2295,7 @@ type ToolbeltCategoryId =
   | "layouts"
   | "measure"
   | "share"
+  | "settings"
   | "help"
 
 type ToolbeltTile = {
@@ -1755,6 +2408,14 @@ const TOOLBELT_CATEGORIES: ToolbeltCategory[] = [
     ],
   },
   {
+    id: "settings",
+    label: "Settings",
+    glyph: "⚙",
+    group: "bottom",
+    description: "Preferences for the editor, map view, devices, alerts, and accessibility.",
+    tiles: [],
+  },
+  {
     id: "help",
     label: "Help &amp; Hotkeys",
     glyph: "?",
@@ -1765,11 +2426,12 @@ const TOOLBELT_CATEGORIES: ToolbeltCategory[] = [
 ]
 
 function EditorToolbelt({
-  active, onPick, onOpenHelp,
+  active, onPick, onOpenHelp, onOpenSettings,
 }: {
   active: ToolbeltCategoryId
   onPick: (id: ToolbeltCategoryId) => void
   onOpenHelp: () => void
+  onOpenSettings: () => void
 }) {
   const activeCat = TOOLBELT_CATEGORIES.find(c => c.id === active)
   const slideOpen = !!activeCat && activeCat.tiles.length > 0
@@ -1782,6 +2444,10 @@ function EditorToolbelt({
           onClick={() => {
             if (cat.id === "help") {
               onOpenHelp()
+              return
+            }
+            if (cat.id === "settings") {
+              onOpenSettings()
               return
             }
             onPick(cat.id)
@@ -2239,6 +2905,7 @@ export function MockPrototype() {
   const [editorAsideCollapsed, setEditorAsideCollapsed] = useState(false)
   const [hotkeysOpen, setHotkeysOpen] = useState(false)
   const [editorDirty] = useState(true)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const navTrail = navStackIds.map(id => findNode(id)).filter((n): n is SpatialNode => Boolean(n))
   const currentNode = navTrail[navTrail.length - 1]
@@ -2498,14 +3165,20 @@ export function MockPrototype() {
 
           {flyTarget && <FlyToBanner target={flyTarget} onDismiss={() => setFlyTarget("")} />}
 
-          {!railOpen && (
-            <HamburgerButton
-              onClick={() => {
-                setRailOpen(true)
-                setVariantRaw("rail-expanded")
-              }}
-            />
+          {!railOpen && !inEditor && (
+            <>
+              <HamburgerButton
+                onClick={() => {
+                  setRailOpen(true)
+                  setVariantRaw("rail-expanded")
+                }}
+              />
+              <SettingsCogButton onClick={() => setSettingsOpen(true)} />
+            </>
           )}
+
+          {/* Settings modal: reachable from chrome cog (viewer) and editor toolbelt */}
+          {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
 
           {railOpen && (
             <FloatingRail
@@ -2528,6 +3201,7 @@ export function MockPrototype() {
                 setActiveRail(null)
                 setVariantRaw("null-state")
               }}
+              onOpenSettings={() => setSettingsOpen(true)}
             />
           )}
 
@@ -2732,6 +3406,7 @@ export function MockPrototype() {
                 active={editorTool}
                 onPick={id => setEditorTool(id)}
                 onOpenHelp={() => setHotkeysOpen(true)}
+                onOpenSettings={() => setSettingsOpen(true)}
               />
               <EditorSelectionAside
                 selectedMarkerId={pickedMarker}
@@ -2783,7 +3458,7 @@ export function MockPrototype() {
               <p>A Place is selected. Place card pinned bottom-left over the map. The floating search box collapsed to a magnifier icon to give the Place card and map more breathing room.</p>
             )}
             {variant === "editor" && (
-              <p><strong>Editor is scoped to one Place.</strong> You can only enter from the Place card's &ldquo;Open in Editor&rdquo; button, so the editor always knows which Floor / Area it&apos;s editing. The viewer rail, alerts cluster, and search are hidden. New chrome: a top center bar with breadcrumb + undo/redo + save status + exit, a left toolbelt with category buttons (Devices, Architecture, Annotations, Layouts, Measure, Share, Help) modeled on Site Planner's ProductMenu, and a right selection aside that shows BOM by default and switches to a marker detail card when a device is picked. Press the &ldquo;?&rdquo; button at the bottom of the toolbelt for the full hotkey reference.</p>
+              <p><strong>Editor is scoped to one Place.</strong> You can only enter from the Place card's &ldquo;Open in Editor&rdquo; button, so the editor always knows which Floor / Area it&apos;s editing. The viewer rail, alerts cluster, and search are hidden. New chrome: a top center bar with breadcrumb + undo/redo + save status + exit, a left toolbelt with category buttons (Devices, Architecture, Annotations, Layouts, Measure, Share, Settings, Help) modeled on Site Planner's ProductMenu, and a right selection aside that shows BOM by default and switches to a marker detail card when a device is picked. Press the &ldquo;?&rdquo; button at the bottom of the toolbelt for the full hotkey reference, or &ldquo;\u2699&rdquo; for the full settings modal.</p>
             )}
             {variant === "search-active" && (
               <p>Search has focus. Results dropdown shows places, devices, entities, and collections as a single results list. The Site scope chip below the input is read-only context.</p>
