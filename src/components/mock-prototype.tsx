@@ -1874,7 +1874,7 @@ export function MockPrototype() {
       {/* Two-column layout: state rail on left, prototype on right */}
       <div className="flex gap-4 items-start">
         {/* Jump-to-state rail */}
-        <aside className="shrink-0 w-44 rounded-xl border border-border bg-card overflow-hidden sticky top-4 max-h-[calc(100vh-2rem)] flex flex-col">
+        <aside className="shrink-0 w-44 rounded-xl border border-border bg-card sticky top-4 flex flex-col relative z-[60]">
           <div className="px-3 py-2.5 border-b border-border/50">
             <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
               Jump to state
@@ -1883,7 +1883,7 @@ export function MockPrototype() {
               Hover ⓘ for detail
             </div>
           </div>
-          <nav className="flex flex-col gap-0.5 p-1.5 overflow-y-auto">
+          <nav className="flex flex-col gap-0.5 p-1.5">
             {VARIANTS.map((v, i) => {
               const isActive = variant === v.id
               const letter = String.fromCharCode(65 + i)
@@ -1916,18 +1916,28 @@ export function MockPrototype() {
                       {v.short}
                     </span>
                   </button>
-                  <span
-                    title={v.sub}
-                    className={cn(
-                      "shrink-0 mr-1.5 size-4 rounded-full border flex items-center justify-center text-[10px] cursor-help transition-colors",
-                      isActive
-                        ? "border-sky-500/40 text-sky-300 hover:bg-sky-500/20"
-                        : "border-border text-muted-foreground/60 hover:text-foreground hover:border-foreground/40",
-                    )}
-                    aria-label={`Description for ${v.short}`}
-                  >
-                    i
-                  </span>
+                  <div className="relative shrink-0 mr-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setVariant(v.id)}
+                      aria-label={`Show description for ${v.short}`}
+                      className={cn(
+                        "peer size-4 rounded-full border flex items-center justify-center text-[10px] font-semibold transition-colors cursor-help",
+                        isActive
+                          ? "border-sky-500/40 text-sky-300 hover:bg-sky-500/20"
+                          : "border-border text-muted-foreground/60 hover:text-foreground hover:border-foreground/40",
+                      )}
+                    >
+                      i
+                    </button>
+                    <div
+                      role="tooltip"
+                      className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 z-[70] w-56 rounded-md border border-border bg-card px-2.5 py-1.5 text-[11px] leading-snug text-foreground shadow-lg opacity-0 translate-x-1 transition-all duration-100 peer-hover:opacity-100 peer-hover:translate-x-0 peer-focus-visible:opacity-100 peer-focus-visible:translate-x-0"
+                    >
+                      <div className="font-semibold text-sky-200 mb-0.5">{v.label}</div>
+                      <div className="text-muted-foreground">{v.sub}</div>
+                    </div>
+                  </div>
                 </div>
               )
             })}
