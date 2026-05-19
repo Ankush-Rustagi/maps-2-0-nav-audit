@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { type ColumnDef } from "@tanstack/react-table"
-import { ChevronRight, ChevronDown } from "lucide-react"
+import { ChevronRight, ChevronDown, Link } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   FULL_AUDIT_ROWS, PATTERNS, NAV_TREE, DEEP_PANELS,
@@ -13,7 +13,28 @@ import { Callout } from "@/components/callout"
 import { DataTable } from "@/components/data-table"
 import { DataSources } from "@/components/data-sources"
 import { PageFooter } from "@/components/page-footer"
+import { MockPrototype } from "@/components/mock-prototype"
 import { type ColumnFiltersState } from "@tanstack/react-table"
+
+// ─── Anchor heading ───────────────────────────────────────────────────────────
+
+function AnchorH2({ id, children, className }: { id: string; children: React.ReactNode; className?: string }) {
+  return (
+    <h2
+      id={id}
+      className={cn("scroll-mt-6 group flex items-center gap-2 text-lg font-semibold mt-8 mb-3", className)}
+    >
+      {children}
+      <a
+        href={`#${id}`}
+        className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+        aria-label="Anchor link"
+      >
+        <Link className="size-3.5" />
+      </a>
+    </h2>
+  )
+}
 
 type TabId = "full" | "patterns" | "verkada" | "mock" | "gmaps-deep"
 
@@ -119,15 +140,38 @@ function TabFull() {
 
 // ─── Tab 2 ───────────────────────────────────────────────────────────────────
 
+const PRIORITY_COLOR: Record<string, string> = {
+  P0: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  P1: "bg-sky-500/15 text-sky-300 border-sky-500/30",
+  P2: "bg-neutral-500/15 text-neutral-300 border-neutral-500/30",
+}
+
+// Left border accent per priority (outlined on the card)
+const PRIORITY_BORDER: Record<string, string> = {
+  P0: "border-l-[3px] border-l-emerald-500/70",
+  P1: "border-l-[3px] border-l-sky-500/70",
+  P2: "border-l-[3px] border-l-neutral-500/50",
+}
+
 function TabPatterns() {
-  const [open, setOpen] = useState<Set<string>>(new Set())
+  const allNames = useMemo(() => PATTERNS.map(p => p.name), [])
+  // All expanded by default
+  const [open, setOpen] = useState<Set<string>>(() => new Set(allNames))
+  const allOpen = open.size === PATTERNS.length
+
   const p0 = PATTERNS.filter(p => p.priority === "P0").length
   const p1 = PATTERNS.filter(p => p.priority === "P1").length
 
-  const PRIORITY_COLOR: Record<string, string> = {
-    P0: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-    P1: "bg-sky-500/15 text-sky-300 border-sky-500/30",
-    P2: "bg-neutral-500/15 text-neutral-300 border-neutral-500/30",
+  function toggleAll() {
+    setOpen(allOpen ? new Set() : new Set(allNames))
+  }
+
+  function toggle(name: string) {
+    setOpen(prev => {
+      const next = new Set(prev)
+      next.has(name) ? next.delete(name) : next.add(name)
+      return next
+    })
   }
 
   return (
@@ -137,7 +181,11 @@ function TabPatterns() {
       </Callout>
 
       <div className="grid grid-cols-3 gap-3">
-        {[{ label: "P0 patterns", value: p0, cls: PRIORITY_COLOR.P0 }, { label: "P1 patterns", value: p1, cls: PRIORITY_COLOR.P1 }, { label: "P2 patterns", value: 0, cls: PRIORITY_COLOR.P2 }].map(s => (
+        {[
+          { label: "P0 patterns", value: p0, cls: PRIORITY_COLOR.P0 },
+          { label: "P1 patterns", value: p1, cls: PRIORITY_COLOR.P1 },
+          { label: "P2 patterns", value: 0,  cls: PRIORITY_COLOR.P2 },
+        ].map(s => (
           <div key={s.label} className={cn("rounded-xl border p-4", s.cls)}>
             <div className="text-3xl font-bold">{s.value}</div>
             <div className="text-xs mt-1 opacity-80">{s.label}</div>
@@ -145,22 +193,32 @@ function TabPatterns() {
         ))}
       </div>
 
+      {/* Expand / collapse all */}
+      <div className="flex justify-end">
+        <button
+          onClick={toggleAll}
+          className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+        >
+          {allOpen ? "Collapse all" : "Expand all"}
+        </button>
+      </div>
+
       <div className="space-y-2">
         {PATTERNS.map(p => {
           const isOpen = open.has(p.name)
           return (
-            <div key={p.name} className="rounded-xl border border-border bg-card overflow-hidden">
+            <div key={p.name} className={cn("rounded-xl border border-border bg-card overflow-hidden", PRIORITY_BORDER[p.priority])}>
               <button
                 className="w-full flex items-center gap-3 p-4 text-left hover:bg-muted/30 transition-colors"
-                onClick={() => setOpen(prev => {
-                  const next = new Set(prev)
-                  next.has(p.name) ? next.delete(p.name) : next.add(p.name)
-                  return next
-                })}
+                onClick={() => toggle(p.name)}
               >
-                {isOpen ? <ChevronDown className="size-4 text-muted-foreground shrink-0" /> : <ChevronRight className="size-4 text-muted-foreground shrink-0" />}
+                {isOpen
+                  ? <ChevronDown className="size-4 text-muted-foreground shrink-0" />
+                  : <ChevronRight className="size-4 text-muted-foreground shrink-0" />}
                 <span className="font-medium flex-1">{p.name}</span>
-                <span className={cn("rounded border px-2 py-0.5 text-[11px] font-medium", PRIORITY_COLOR[p.priority])}>{p.priority}</span>
+                <span className={cn("rounded border px-2 py-0.5 text-[11px] font-medium", PRIORITY_COLOR[p.priority])}>
+                  {p.priority}
+                </span>
                 <span className="text-xs text-muted-foreground ml-2 hidden sm:block">{p.appliesTo.length} surfaces</span>
               </button>
               {isOpen && (
@@ -260,7 +318,13 @@ function NavTreeNode({ node, isExpanded, hasChildren, onToggle }: {
 }
 
 function TabVerkada() {
+  // maxDepth controls which depth levels are visible (0 = root only, 99 = all)
+  const [maxDepth, setMaxDepth] = useState<number>(99)
+  // Per-node individual collapse (on top of maxDepth)
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
+
+  // Max depth that exists in the tree
+  const treMaxDepth = useMemo(() => Math.max(...NAV_TREE.map(n => n.depth)), [])
 
   function hasChildren(i: number): boolean {
     const next = NAV_TREE[i + 1]
@@ -268,15 +332,16 @@ function TabVerkada() {
   }
 
   function isVisible(i: number): boolean {
+    const node = NAV_TREE[i]
+    if (node.depth > maxDepth) return false
+    // Check if any ancestor is individually collapsed
     for (let j = i - 1; j >= 0; j--) {
-      if (NAV_TREE[j].depth < NAV_TREE[i].depth) {
-        if (collapsed.has(j)) return false
-      }
+      if (NAV_TREE[j].depth < node.depth && collapsed.has(j)) return false
     }
     return true
   }
 
-  const toggleCollapse = (i: number) => {
+  function toggleCollapse(i: number) {
     setCollapsed(prev => {
       const next = new Set(prev)
       next.has(i) ? next.delete(i) : next.add(i)
@@ -284,16 +349,56 @@ function TabVerkada() {
     })
   }
 
+  function setLevel(depth: number) {
+    setMaxDepth(depth)
+    setCollapsed(new Set()) // clear per-node collapses when switching levels
+  }
+
+  const LEVELS = [
+    { label: "L0", depth: 0 },
+    { label: "L1", depth: 1 },
+    { label: "L2", depth: 2 },
+    { label: "L3", depth: 3 },
+    { label: "All", depth: 99 },
+  ].filter(l => l.depth <= treMaxDepth || l.depth === 99)
+
   return (
     <div className="space-y-6">
       <Callout variant="info" title="What this is">
-        The complete proposed information architecture for Verkada Maps 2.0, derived from the Google Maps audit. Indentation = hierarchy depth. Click any node with children to collapse/expand.
+        The complete proposed information architecture for Verkada Maps 2.0, derived from the Google Maps audit. Indentation = hierarchy depth. Use the level controls to expand/collapse the tree by depth, or click individual nodes.
       </Callout>
+
+      {/* Legend */}
       <div className="text-xs text-muted-foreground flex flex-wrap gap-2">
         {Object.entries(KIND_COLOR).map(([kind, cls]) => (
           <span key={kind} className={cn("rounded border px-2 py-0.5", cls)}>{kind}</span>
         ))}
       </div>
+
+      {/* Level controls */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground shrink-0">Expand to:</span>
+        <div className="flex gap-1.5">
+          {LEVELS.map(l => (
+            <button
+              key={l.label}
+              onClick={() => setLevel(l.depth)}
+              className={cn(
+                "rounded border px-3 py-1 text-xs font-medium transition-colors",
+                maxDepth === l.depth
+                  ? "bg-foreground text-background border-foreground"
+                  : "border-border text-muted-foreground hover:border-foreground/50",
+              )}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
+        <span className="text-xs text-muted-foreground ml-1">
+          · {NAV_TREE.filter((_, i) => isVisible(i)).length} nodes visible
+        </span>
+      </div>
+
       <div className="rounded-xl border border-border bg-card p-4 space-y-0.5">
         {NAV_TREE.map((node, i) =>
           isVisible(i) ? (
@@ -311,220 +416,10 @@ function TabVerkada() {
   )
 }
 
-// ─── Tab 4: Mock wireframe ────────────────────────────────────────────────────
-
-const MOCK_VARIANTS = [
-  { id: "null-state", label: "A · Null state", desc: "Default panel, no selection. Site scope chip visible." },
-  { id: "search-focused", label: "B · Search focused", desc: "Search dropdown open, grouped autocomplete results." },
-  { id: "place-selected", label: "C · Place selected", desc: "Place panel open: HQ Campus > Main Bldg > Floor 3." },
-  { id: "editor-mode", label: "D · Editor mode", desc: "Editor toolbar active, marker detail panel open." },
-  { id: "layers-open", label: "E · Layers panel", desc: "Data Layers panel open, Device Status + Coverage toggled." },
-  { id: "collections", label: "F · Collections", desc: "Collections rail flyout, 'HQ External Cameras' open." },
-]
-
-function MockPanel({ variant }: { variant: string }) {
-  const SearchDropdown = () => (
-    <div className="absolute top-full left-0 right-0 mt-1 rounded-lg border border-border bg-card shadow-xl z-10 overflow-hidden">
-      {[{ type: "Recent", items: ["HQ Campus", "Floor 3 · Main Bldg"] }, { type: "Places", items: ["HQ Campus · Location", "East Campus · Location"] }, { type: "Devices", items: ["Cam-Lobby-01 · Camera", "Door-003 · Access Control"] }].map(group => (
-        <div key={group.type}>
-          <div className="px-3 py-1 text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider bg-muted/30">{group.type}</div>
-          {group.items.map(item => (
-            <div key={item} className="px-3 py-2 hover:bg-muted/40 cursor-pointer text-sm">{item}</div>
-          ))}
-        </div>
-      ))}
-    </div>
-  )
-
-  const PlacePanel = () => (
-    <div className="h-full flex flex-col text-sm overflow-auto">
-      <div className="p-3 border-b border-border/50">
-        <div className="text-[10px] text-muted-foreground/60 mb-1">Org › HQ Campus › Main Bldg</div>
-        <div className="font-semibold">Floor 3</div>
-        <div className="flex gap-1 mt-1 flex-wrap">
-          <span className="rounded border border-sky-500/30 bg-sky-500/10 text-sky-300 text-[10px] px-1.5 py-px">Floor</span>
-          <span className="rounded border border-violet-500/30 bg-violet-500/10 text-violet-300 text-[10px] px-1.5 py-px">HQ-MAIN</span>
-          <span className="rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-[10px] px-1.5 py-px">42/45 online</span>
-        </div>
-        <div className="flex gap-1.5 mt-2.5 flex-wrap">
-          {["Open in Editor", "Add to Collection", "Share", "Permissions", "Nearby"].map(a => (
-            <span key={a} className="rounded border border-border bg-muted/50 px-2 py-0.5 text-[10px] cursor-pointer hover:border-foreground/40 transition-colors">{a}</span>
-          ))}
-        </div>
-      </div>
-      <div className="flex border-b border-border/50">
-        {["Overview", "Markers", "Activity", "About"].map(t => (
-          <button key={t} className={cn("px-3 py-2 text-[10px] font-medium transition-colors", t === "Overview" ? "text-foreground border-b-2 border-primary" : "text-muted-foreground hover:text-foreground")}>{t}</button>
-        ))}
-      </div>
-      <div className="p-3 space-y-2 flex-1">
-        <div className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Marker counts</div>
-        {[{ label: "Cameras", count: 24 }, { label: "Doors", count: 12 }, { label: "Sensors", count: 6 }].map(m => (
-          <div key={m.label} className="flex justify-between text-xs"><span className="text-muted-foreground">{m.label}</span><span>{m.count}</span></div>
-        ))}
-        <div className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mt-3">Recent activity</div>
-        {["Motion detected · Cam-NE-01 · 2m ago", "Door propped · Door-007 · 14m ago"].map(e => (
-          <div key={e} className="text-[10px] text-muted-foreground py-1 border-b border-border/30">{e}</div>
-        ))}
-      </div>
-    </div>
-  )
-
-  const LayersPanel = () => (
-    <div className="p-3 space-y-3 text-xs overflow-auto h-full">
-      <div className="font-semibold text-sm">Data Layers</div>
-      <div>
-        <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1.5">(A) Devices & Entities</div>
-        {["Cameras", "Access Control", "Alarms", "Sensors"].map(d => (
-          <div key={d} className="flex items-center gap-2 py-1">
-            <div className="size-3 rounded-sm border-2 border-emerald-400 bg-emerald-400/30" />
-            <span>{d}</span>
-          </div>
-        ))}
-      </div>
-      <div>
-        <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold mb-1.5">(B) Visualizations</div>
-        {[{ l: "Device Status", on: true }, { l: "Coverage", on: true }, { l: "Events & Alerts", on: false }, { l: "Foot Traffic", on: false }].map(v => (
-          <div key={v.l} className="flex items-center gap-2 py-1">
-            <div className={cn("size-3 rounded-full border-2", v.on ? "border-sky-400 bg-sky-400/30" : "border-border bg-transparent")} />
-            <span className={v.on ? "" : "text-muted-foreground"}>{v.l}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-
-  const CollectionsPanel = () => (
-    <div className="p-3 space-y-2 text-xs overflow-auto h-full">
-      <div className="font-semibold text-sm">Collections</div>
-      <div className="flex gap-1.5 flex-wrap">
-        {["My Collections", "Shared with me", "Following"].map(c => (
-          <span key={c} className={cn("rounded-full border px-2.5 py-0.5 text-[10px]", c === "My Collections" ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground")}>{c}</span>
-        ))}
-      </div>
-      {["HQ External Cameras (12)", "Door Access Audit (8)", "Parking Zone A (4)"].map(col => (
-        <div key={col} className="flex items-center justify-between py-1.5 border-b border-border/40">
-          <span>{col}</span>
-          <ChevronRight className="size-3 text-muted-foreground" />
-        </div>
-      ))}
-    </div>
-  )
-
-  const EditorPanel = () => (
-    <div className="p-3 space-y-2 text-xs overflow-auto h-full">
-      <div className="font-semibold text-sm">Cam-Lobby-01</div>
-      <div className="flex gap-1"><span className="rounded border border-sky-500/30 bg-sky-500/10 text-sky-300 text-[10px] px-1.5 py-px">Device</span><span className="rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-[10px] px-1.5 py-px">Online</span></div>
-      <div className="flex gap-1.5 mt-1 flex-wrap">{["Open footage", "Live view", "Configure"].map(a => <span key={a} className="rounded border border-border bg-muted/50 px-2 py-0.5 text-[10px] cursor-pointer">{a}</span>)}</div>
-      <div className="border-t border-border/40 pt-2 space-y-1">
-        {[["Name", "Cam-Lobby-01"], ["Site", "HQ-MAIN"], ["Kind", "Camera (CD52)"], ["Status", "Online"]].map(([k, v]) => (
-          <div key={k} className="flex justify-between"><span className="text-muted-foreground">{k}</span><span>{v}</span></div>
-        ))}
-      </div>
-    </div>
-  )
-
-  const panelContent = () => {
-    if (variant === "search-focused") return <div className="relative p-3"><div className="rounded border border-border bg-muted/50 px-2 py-1.5 text-sm text-muted-foreground">Floor 3…<SearchDropdown /></div></div>
-    if (variant === "place-selected") return <PlacePanel />
-    if (variant === "layers-open") return <LayersPanel />
-    if (variant === "collections") return <CollectionsPanel />
-    if (variant === "editor-mode") return <EditorPanel />
-    return (
-      <div className="p-3 space-y-3 text-xs">
-        <div className="font-medium text-muted-foreground">Alerts & events</div>
-        <div className="rounded border border-amber-500/30 bg-amber-500/10 text-amber-300 p-2">No active emergencies</div>
-        {["Cam-NE-01 · Motion · 2m ago", "Door-007 · Propped · 14m ago", "Cam-SW-04 · Offline · 1h ago"].map(e => (
-          <div key={e} className="text-muted-foreground py-1 border-b border-border/30">{e}</div>
-        ))}
-        <div className="font-medium text-muted-foreground pt-1">Recents</div>
-        {["Floor 3 · Main Bldg", "HQ Campus", "WAREHOUSE-A"].map(r => (
-          <div key={r} className="flex justify-between py-1 border-b border-border/30 text-muted-foreground"><span>{r}</span><ChevronRight className="size-3" /></div>
-        ))}
-      </div>
-    )
-  }
-
-  return (
-    <div className="relative rounded-xl border border-border overflow-hidden bg-card" style={{ height: 520 }}>
-      {/* Editor toolbar (variant D) */}
-      {variant === "editor-mode" && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 shadow-lg text-[11px]">
-          <span className="rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 px-2 py-0.5 font-medium">Editor</span>
-          <span className="h-4 w-px bg-border" />
-          {["Select", "Wall", "Door", "Camera", "Sensor", "Label"].map(t => (
-            <span key={t} className={cn("px-2 py-0.5 rounded cursor-pointer", t === "Select" ? "bg-muted border border-border" : "hover:bg-muted/50")}>{t}</span>
-          ))}
-        </div>
-      )}
-      {/* Map background */}
-      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 70% 60% at 60% 50%, oklch(0.3 0.04 220), oklch(0.15 0.02 220))" }}>
-        {/* mock camera dots */}
-        {[[55, 35], [65, 55], [75, 42], [58, 68], [70, 70]].map(([x, y], i) => (
-          <div key={i} className="absolute size-2 rounded-full bg-emerald-400/80 ring-2 ring-emerald-400/30" style={{ left: `${x}%`, top: `${y}%` }} />
-        ))}
-        {/* map label */}
-        <div className="absolute top-3 right-3 text-[10px] text-white/30 font-mono">Floor 3 · Main Bldg</div>
-        {/* zoom controls */}
-        <div className="absolute bottom-4 right-4 flex flex-col gap-0.5">
-          {["+", "−"].map(z => <button key={z} className="size-7 rounded border border-border/50 bg-card/80 text-xs font-bold text-muted-foreground hover:bg-card transition-colors">{z}</button>)}
-        </div>
-        {/* site scope chip */}
-        <div className="absolute top-3 right-14 rounded-full border border-border/60 bg-card/90 text-[10px] text-muted-foreground px-3 py-1 backdrop-blur-sm">
-          🏢 HQ-MAIN
-        </div>
-      </div>
-      {/* Rail */}
-      <div className="absolute left-0 top-0 bottom-0 w-10 border-r border-border/50 bg-card/95 flex flex-col items-center py-3 gap-3 z-10">
-        {[["🗺", "Map"], ["📍", "Locations"], ["📁", "Collections"], ["⚡", "Layers"], ["🕐", "Recents"]].map(([icon, label]) => (
-          <button key={label} title={label} className="size-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-base">
-            <span className="text-base">{icon}</span>
-          </button>
-        ))}
-      </div>
-      {/* Left panel */}
-      <div className="absolute left-10 top-0 bottom-0 w-64 border-r border-border/50 bg-card/95 z-10 overflow-hidden">
-        {/* Search bar */}
-        <div className="p-2 border-b border-border/50 relative">
-          <div className="rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-xs text-muted-foreground">
-            🔍 Search Verkada Maps…
-          </div>
-        </div>
-        {panelContent()}
-      </div>
-    </div>
-  )
-}
+// ─── Tab 4: Interactive prototype ────────────────────────────────────────────
 
 function TabMock() {
-  const [variant, setVariant] = useState("null-state")
-  const current = MOCK_VARIANTS.find(v => v.id === variant)
-
-  return (
-    <div className="space-y-6">
-      <Callout variant="warning" title="Static wireframe preview">
-        The original canvas had a fully interactive 4,700-line prototype. This is a fidelity-accurate static rendering of the 6 key variants. Full port in progress.
-      </Callout>
-      <div className="flex flex-wrap gap-2">
-        {MOCK_VARIANTS.map(v => (
-          <button
-            key={v.id}
-            onClick={() => setVariant(v.id)}
-            className={cn(
-              "rounded-full border px-3.5 py-1 text-xs font-medium transition-colors",
-              variant === v.id ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:border-foreground/50",
-            )}
-          >
-            {v.label}
-          </button>
-        ))}
-      </div>
-      {current && (
-        <p className="text-sm text-muted-foreground -mt-2">{current.desc}</p>
-      )}
-      <MockPanel variant={variant} />
-    </div>
-  )
+  return <MockPrototype />
 }
 
 // ─── Tab 5 ───────────────────────────────────────────────────────────────────
@@ -541,7 +436,7 @@ function TabGMapsDeep() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold mb-1">GMaps panels deep audit</h2>
+        <AnchorH2 id="gmaps-panels">GMaps panels deep audit</AnchorH2>
         <p className="text-sm text-muted-foreground leading-relaxed">
           Focused live re-audit of five Google Maps panels. Each card pairs Google's concrete behavior with a Verkada verdict. Three of the five panels were sign-in gated; public surface is what we have to work from.
         </p>
@@ -606,7 +501,7 @@ function TabGMapsDeep() {
       </div>
 
       <div className="rounded-xl border border-border bg-card p-5">
-        <div className="font-medium mb-3">Decision checklist (maps to mock v3 changes)</div>
+        <AnchorH2 id="decision-checklist" className="text-base mt-0 mb-3">Decision checklist (maps to mock v3 changes)</AnchorH2>
         <ul className="space-y-2">
           {[
             "Keep Collections at top-level in the left rail (Panel 1).",
@@ -639,7 +534,7 @@ function DictionaryAnchor() {
   ]
   return (
     <div className="rounded-xl border border-border bg-card p-5">
-      <div className="font-medium mb-4">Verkada Maps 2.0 dictionary anchors</div>
+      <AnchorH2 id="dictionary" className="text-base mt-0 mb-4">Verkada Maps 2.0 dictionary anchors</AnchorH2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {items.map(item => (
           <div key={item.title}>
@@ -654,9 +549,28 @@ function DictionaryAnchor() {
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
+const VALID_TABS: TabId[] = ["full", "patterns", "verkada", "mock", "gmaps-deep"]
+
 export default function App() {
-  const [tab, setTab] = useState<TabId>("full")
+  const [tab, setTab] = useState<TabId>(() => {
+    const hash = window.location.hash.slice(1) as TabId
+    return VALID_TABS.includes(hash) ? hash : "full"
+  })
   const current = useMemo(() => TABS.find(t => t.id === tab), [tab])
+
+  useEffect(() => {
+    function onHashChange() {
+      const hash = window.location.hash.slice(1) as TabId
+      if (VALID_TABS.includes(hash)) setTab(hash)
+    }
+    window.addEventListener("hashchange", onHashChange)
+    return () => window.removeEventListener("hashchange", onHashChange)
+  }, [])
+
+  function changeTab(id: TabId) {
+    setTab(id)
+    history.pushState(null, "", `#${id}`)
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -688,7 +602,7 @@ export default function App() {
           {TABS.map(t => (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => changeTab(t.id)}
               className={cn(
                 "rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
                 tab === t.id ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:border-foreground/50",
