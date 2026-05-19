@@ -54,6 +54,16 @@ function VerdictBadge({ verdict }: { verdict: Verdict }) {
   )
 }
 
+// Overview content (TL;DR + dictionary anchors). Rendered at the top of
+// Tab 1 (Full audit) so the navigation pills sit directly under the header.
+const TLDR_ITEMS: string[] = [
+  "Google Maps has 24 distinct left-sidebar surfaces. Verkada adopts 9 as-is, adapts 6, skips 6, and adds 3 net-new.",
+  "The top P0 UX patterns to carry over: contextual place detail panel, layered data-layer toggle, and grouped search autocomplete.",
+  "Verkada-first IA flips Google's content hierarchy: Locations and Collections lead, not recents and saved places.",
+  "Search should add per-result-type icons \u2014 our results (cameras, floors, locations) are more heterogeneous than Google's.",
+  "File-creates-Place is a primary onboarding moment and should be prominently surfaced, not buried.",
+]
+
 // ─── Tab 1 ───────────────────────────────────────────────────────────────────
 
 const AUDIT_COLUMNS: ColumnDef<typeof FULL_AUDIT_ROWS[0], unknown>[] = [
@@ -97,6 +107,12 @@ function TabFull() {
 
   return (
     <div className="space-y-6">
+      {/* Overview: TL;DR + Verkada Maps 2.0 dictionary anchors.
+          Lives at the top of Tab 1 so the navigation pills can sit
+          directly under the page header. */}
+      <TldrCard items={TLDR_ITEMS} className="mb-0" />
+      <DictionaryAnchor />
+
       <Callout variant="info" title="What this is">
         Every Google Maps left-sidebar surface mapped 1:1 to a Verkada Maps 2.0 equivalent. Verdict tells you whether to lift the pattern as-is, adapt it, drop it, or recognize it as Verkada-specific net-new.
       </Callout>
@@ -588,17 +604,7 @@ export default function App() {
           gradient="radial-gradient(ellipse 80% 60% at 15% 0%, oklch(0.55 0.18 230 / 0.7), transparent), radial-gradient(ellipse 60% 50% at 85% 0%, oklch(0.6 0.18 160 / 0.5), transparent)"
         />
 
-        <TldrCard items={[
-          "Google Maps has 24 distinct left-sidebar surfaces. Verkada adopts 9 as-is, adapts 6, skips 6, and adds 3 net-new.",
-          "The top P0 UX patterns to carry over: contextual place detail panel, layered data-layer toggle, and grouped search autocomplete.",
-          "Verkada-first IA flips Google's content hierarchy: Locations and Collections lead, not recents and saved places.",
-          "Search should add per-result-type icons — our results (cameras, floors, locations) are more heterogeneous than Google's.",
-          "File-creates-Place is a primary onboarding moment and should be prominently surfaced, not buried.",
-        ]} />
-
-        <DictionaryAnchor />
-
-        <nav className="mt-8 mb-2 flex flex-wrap gap-2">
+        <nav className="mt-6 mb-2 flex flex-wrap gap-2">
           {TABS.map(t => (
             <button
               key={t.id}
