@@ -735,8 +735,8 @@ export default function App() {
       <main className="mx-auto max-w-6xl px-4 md:px-6 py-10">
         <PageHeader
           type="Navigation Audit"
-          title={<>Google Maps → Verkada Maps 2.0<br /><span className="text-muted-foreground">Navigation Audit</span></>}
-          subtitle="Surface-by-surface crosswalk of Google Maps navigation patterns against the proposed Verkada Maps 2.0 information architecture."
+          title={<>Maps 2.0 IA + Flows<br /><span className="text-muted-foreground">Google Maps Nav Audit</span></>}
+          subtitle={<>Google Maps is purrty gud.<br />What can we learn from their UX and apply to Maps?</>}
           createdDate="May 15, 2026"
           modifiedDate="May 16, 2026"
           stats={[

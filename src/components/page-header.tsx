@@ -8,7 +8,7 @@ interface Stat {
 
 interface PageHeaderProps {
   title: string | React.ReactNode
-  subtitle?: string
+  subtitle?: string | React.ReactNode
   backHref?: string
   backLabel?: string
   type?: string
