@@ -14,6 +14,7 @@ type MockVariant =
   | "collections-flyout"
   | "files-flyout"
   | "place-selected"
+  | "editor-entry"
   | "editor"
   | "search-active"
   | "site-picker"
@@ -21,6 +22,7 @@ type MockVariant =
   | "place-with-drop"
   | "file-attaching"
   | "collection-detail"
+  | "settings-open"
 
 type RailItem = "recents" | "locations" | "collections" | "files"
 
@@ -57,20 +59,22 @@ type EntityKind =
 // ============================================================================
 
 const VARIANTS: { id: MockVariant; label: string; short: string; sub: string }[] = [
-  { id: "null-state", label: "A · Null state", short: "Null state", sub: "Map only. Hamburger + Settings cog + floating search + Alerts overlay." },
-  { id: "rail-expanded", label: "B · Rail expanded", short: "Rail expanded", sub: "Hamburger clicked. Icon column visible." },
+  { id: "null-state", label: "A · Null state", short: "Null state", sub: "Map only. Hamburger top-left, Account avatar top-right (Settings lives here), floating search, Alerts cluster." },
+  { id: "rail-expanded", label: "B · Rail expanded", short: "Rail expanded", sub: "Hamburger clicked. Icon column visible. Footer Settings item below the divider." },
   { id: "recents-flyout", label: "C · Recents flyout", short: "Recents", sub: "Recents list flyout, filterable, same shape as other lists." },
   { id: "locations-flyout", label: "D · Locations flyout", short: "Locations", sub: "Locations list with filter chips + free-text. Site context strip on top." },
   { id: "collections-flyout", label: "E · Collections flyout", short: "Collections", sub: "Collections list. Same shape as Locations." },
   { id: "files-flyout", label: "F · Files flyout", short: "Files", sub: "Files list with drag-to-canvas affordance for first-time builders." },
-  { id: "place-selected", label: "G · Place selected", short: "Place selected", sub: "Place card pinned bottom-left. Search collapsed to icon." },
-  { id: "editor", label: "H · Editor mode", short: "Editor", sub: "Toolbar + marker detail. Search collapsed. Alerts hidden." },
-  { id: "search-active", label: "I · Search active", short: "Search", sub: "Navigator search. Results dropdown. Site scope is read-only context here." },
-  { id: "site-picker", label: "J · Site picker open", short: "Site picker", sub: "Site chip clicked. Shows only sites with map presence in current view." },
-  { id: "file-first-dropzone", label: "K · File-first dropzone", short: "File dropzone", sub: "Files flyout open. Dropzone at top of list. Path A flow." },
-  { id: "place-with-drop", label: "L · Place + drag accelerator", short: "Place + drag", sub: "Place card open. Browser detects dragover. Drop hint over map. Path B." },
-  { id: "file-attaching", label: "M · File attaching / aligning", short: "File attaching", sub: "Post-drop. Progress card + alignment prompt over the map." },
-  { id: "collection-detail", label: "N · Collection detail", short: "Collection", sub: "Inside a Collection. Children render as a flat nav list." },
+  { id: "place-selected", label: "G · Place selected", short: "Place selected", sub: "Place card pinned bottom-left. \u201cOpen in Editor\u201d is the only entry to editor mode." },
+  { id: "editor-entry", label: "H \u00b7 Viewer \u2192 Editor handoff", short: "Editor entry", sub: "Place card highlights the \u201cOpen in Editor\u201d primary action. Viewer chrome dims; editor chrome fades in. Demonstrates the only path into the editor." },
+  { id: "editor", label: "I · Editor mode", short: "Editor", sub: "Editor toolbelt (left) + selection aside (right) + top bar (Place breadcrumb, undo / redo, save, exit). Viewer rail and alerts are hidden." },
+  { id: "search-active", label: "J · Search active", short: "Search", sub: "Navigator search. Results dropdown. Site scope is read-only context here." },
+  { id: "site-picker", label: "K · Site picker open", short: "Site picker", sub: "Site chip clicked. Shows only sites with map presence in current view." },
+  { id: "file-first-dropzone", label: "L · File-first dropzone", short: "File dropzone", sub: "Files flyout open. Dropzone at top of list. Path A flow." },
+  { id: "place-with-drop", label: "M · Place + drag accelerator", short: "Place + drag", sub: "Place card open. Browser detects dragover. Drop hint over map. Path B." },
+  { id: "file-attaching", label: "N · File attaching / aligning", short: "File attaching", sub: "Post-drop. Progress card + alignment prompt over the map." },
+  { id: "collection-detail", label: "O · Collection detail", short: "Collection", sub: "Inside a Collection. Children render as a flat nav list." },
+  { id: "settings-open", label: "P \u00b7 Settings open", short: "Settings", sub: "User + Org Admin settings, scoped tabs, locked rows. Reachable from Account avatar (viewer) and toolbelt gear (editor)." },
 ]
 
 const RAIL_ITEMS: { id: RailItem; label: string; glyph: string }[] = [
@@ -866,6 +870,84 @@ function SearchDropdown({ query, leftOffset }: { query: string; leftOffset: numb
 // Top-right Site + Alerts cluster
 // ============================================================================
 
+function AccountAvatarMenu({
+  open, onToggle, onOpenSettings, onOpenHelp,
+}: {
+  open: boolean
+  onToggle: () => void
+  onOpenSettings: () => void
+  onOpenHelp: () => void
+}) {
+  return (
+    <div className="absolute top-3.5 right-3.5 z-30">
+      <button
+        onClick={onToggle}
+        title="Account"
+        className={cn(
+          "size-9 rounded-full border flex items-center justify-center text-[11px] font-semibold transition-colors",
+          open
+            ? "bg-sky-500 border-sky-400 text-white"
+            : "bg-card/95 border-border text-foreground hover:bg-card",
+        )}
+      >
+        AR
+      </button>
+      {open && (
+        <div className="absolute right-0 top-11 w-60 rounded-lg border border-border bg-card/95 shadow-xl overflow-hidden">
+          {/* Identity block */}
+          <div className="px-3 py-2.5 border-b border-border/50">
+            <div className="flex items-center gap-2.5">
+              <div className="size-8 rounded-full bg-sky-500 text-white text-[10px] font-semibold flex items-center justify-center shrink-0">AR</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold truncate">Ankush Rustagi</div>
+                <div className="text-[10px] text-muted-foreground truncate">ankush@verkada.com</div>
+              </div>
+            </div>
+            <div className="mt-2 flex items-center gap-1.5">
+              <Pill size="sm" tone="info">Verkada Inc</Pill>
+              <Pill size="sm" tone="warning" active>Maps Admin</Pill>
+            </div>
+          </div>
+
+          {/* Items */}
+          <div className="py-1 text-[12px]">
+            <button
+              onClick={() => { onToggle(); onOpenSettings() }}
+              className="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-muted/40 transition-colors"
+            >
+              <span className="size-4 text-center leading-none text-muted-foreground">⚙</span>
+              <span>Settings</span>
+              <span className="ml-auto text-[10px] text-muted-foreground/70">⌘ ,</span>
+            </button>
+            <button
+              onClick={() => { onToggle(); onOpenHelp() }}
+              className="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-muted/40 transition-colors"
+            >
+              <span className="size-4 text-center leading-none text-muted-foreground">?</span>
+              <span>Help &amp; hotkeys</span>
+              <span className="ml-auto text-[10px] text-muted-foreground/70">?</span>
+            </button>
+            <div className="h-px bg-border/40 my-1" />
+            <button className="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-muted/40 transition-colors">
+              <span className="size-4 text-center leading-none text-muted-foreground">◔</span>
+              <span>Manage account</span>
+            </button>
+            <button className="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-muted/40 transition-colors">
+              <span className="size-4 text-center leading-none text-muted-foreground">⇄</span>
+              <span>Switch org</span>
+            </button>
+            <div className="h-px bg-border/40 my-1" />
+            <button className="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-muted/40 transition-colors text-red-300">
+              <span className="size-4 text-center leading-none">→</span>
+              <span>Sign out</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SiteAlertsCluster({
   siteScope, placeCount, pickerOpen, onTogglePicker, alertsCollapsed, onToggleAlerts, recentlyChanged, onDismissChanged,
 }: {
@@ -879,7 +961,7 @@ function SiteAlertsCluster({
   onDismissChanged: () => void
 }) {
   return (
-    <div className="absolute top-3.5 right-3.5 z-25 w-[340px] bg-card/95 border border-border rounded-lg overflow-hidden">
+    <div className="absolute right-3.5 z-25 w-[340px] bg-card/95 border border-border rounded-lg overflow-hidden" style={{ top: 60 }}>
       {/* Site row */}
       <button
         onClick={onTogglePicker}
@@ -1501,7 +1583,7 @@ function FilesFlyoutBody({ siteContext }: { siteContext: string }) {
 // ============================================================================
 
 function FloatingPlaceCard({
-  tab, onChangeTab, onClose, onOpenInEditor, showDragHint, onSimulateDragOver, focusLabel, focusKind, leftOffset = 14,
+  tab, onChangeTab, onClose, onOpenInEditor, showDragHint, onSimulateDragOver, focusLabel, focusKind, leftOffset = 14, pulseEditor,
 }: {
   tab: PlacePanelTab
   onChangeTab: (t: PlacePanelTab) => void
@@ -1512,6 +1594,9 @@ function FloatingPlaceCard({
   focusLabel?: string
   focusKind?: EntityKind
   leftOffset?: number
+  /** When true, the "Open in Editor" button pulses and is the focal point.
+   *  Used by the editor-entry transition variant. */
+  pulseEditor?: boolean
 }) {
   const tabs: { id: PlacePanelTab; label: string }[] = [
     { id: "overview", label: "Overview" },
@@ -1535,7 +1620,17 @@ function FloatingPlaceCard({
         </div>
         <div className="text-[11px] text-muted-foreground mt-0.5">{fullPath} · Site: HQ-MAIN</div>
         <div className="flex flex-wrap gap-1.5 mt-2">
-          <button onClick={onOpenInEditor} className="rounded-md border border-sky-500/40 bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 px-3 py-1 text-xs font-medium transition-colors">Open in Editor</button>
+          <button
+            onClick={onOpenInEditor}
+            className={cn(
+              "rounded-md border px-3 py-1 text-xs font-medium transition-colors",
+              pulseEditor
+                ? "border-amber-400/70 bg-amber-400/25 text-amber-100 ring-2 ring-amber-400/40 animate-pulse"
+                : "border-sky-500/40 bg-sky-500/20 hover:bg-sky-500/30 text-sky-200",
+            )}
+          >
+            Open in Editor
+          </button>
           <button className="rounded-md border border-border bg-muted/40 hover:bg-muted/60 px-3 py-1 text-xs text-muted-foreground transition-colors">Share</button>
           <button className="rounded-md border border-border bg-muted/40 hover:bg-muted/60 px-3 py-1 text-xs text-muted-foreground transition-colors">Permissions</button>
         </div>
@@ -1661,6 +1756,13 @@ type SettingRow = {
   label: string
   helper: string
   source?: "site-planner" | "google-maps" | "new"
+  /**
+   * Who owns this preference?
+   * - "user": every user can change this for themselves
+   * - "org":  only a Maps Admin can change this; the value applies to all users
+   *          in the org. Mirrors Site Planner's PreferenceValue.lockedByOrg.
+   */
+  scope: "user" | "org"
   control: SettingControl
 }
 
@@ -1682,8 +1784,9 @@ const SETTINGS_DATA: SettingsCategory[] = [
       {
         id: "default-basemap",
         label: "Default basemap",
-        helper: "Honored on every fresh session.",
+        helper: "Org house style. Maps Admins set this once; users can still flip basemaps for their own session.",
         source: "google-maps",
+        scope: "org",
         control: {
           kind: "select",
           value: "streets",
@@ -1699,6 +1802,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Theme",
         helper: "System follows OS preference.",
         source: "google-maps",
+        scope: "user",
         control: {
           kind: "select",
           value: "system",
@@ -1714,6 +1818,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Show traffic by default",
         helper: "Real-time traffic layer for outdoor sites near roads.",
         source: "google-maps",
+        scope: "user",
         control: { kind: "toggle", value: false },
       },
       {
@@ -1721,6 +1826,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Show 3D buildings",
         helper: "Hover-elevation in supported regions. Adds GPU cost.",
         source: "google-maps",
+        scope: "user",
         control: { kind: "toggle", value: true },
       },
       {
@@ -1728,6 +1834,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Auto-rotate to north on idle",
         helper: "Snaps the heading back to north after 5s of no input.",
         source: "new",
+        scope: "user",
         control: { kind: "toggle", value: false },
       },
     ],
@@ -1743,6 +1850,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Click to drag",
         helper: "When on, click + drag pans. When off, click + drag lassos. Hold Space to invert.",
         source: "site-planner",
+        scope: "user",
         control: { kind: "toggle", value: false },
       },
       {
@@ -1750,6 +1858,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Scroll to zoom",
         helper: "On for mouse users. Off for trackpad pan-and-pinch.",
         source: "site-planner",
+        scope: "user",
         control: { kind: "toggle", value: true },
       },
       {
@@ -1757,6 +1866,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Default zoom on open",
         helper: "Honored when no Place is in the URL.",
         source: "new",
+        scope: "user",
         control: {
           kind: "select",
           value: "site",
@@ -1773,6 +1883,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Sticky site scope between sessions",
         helper: "Reopens Command with the last selected Site.",
         source: "new",
+        scope: "user",
         control: { kind: "toggle", value: true },
       },
     ],
@@ -1788,6 +1899,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Show canvas grid",
         helper: "Grid every 10 ft. Off for a clean view.",
         source: "site-planner",
+        scope: "user",
         control: { kind: "toggle", value: true },
       },
       {
@@ -1795,6 +1907,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Grid spacing",
         helper: "Honored when grid is on.",
         source: "new",
+        scope: "user",
         control: {
           kind: "select",
           value: "10ft",
@@ -1812,6 +1925,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Measurement unit",
         helper: "Drives the ruler, area, and grid spacing readouts.",
         source: "site-planner",
+        scope: "user",
         control: {
           kind: "select",
           value: "feet",
@@ -1826,6 +1940,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Snap to grid",
         helper: "All plotting and drawing snaps to grid intersections.",
         source: "new",
+        scope: "user",
         control: { kind: "toggle", value: true },
       },
       {
@@ -1833,13 +1948,15 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Snap to walls",
         helper: "Doors and windows snap to wall midpoints.",
         source: "new",
+        scope: "user",
         control: { kind: "toggle", value: true },
       },
       {
         id: "autosave",
         label: "Auto-save interval",
-        helper: "Manual save is always available via \u2318S.",
+        helper: "Data-loss tolerance is an org policy. Manual save (\u2318S) always available.",
         source: "new",
+        scope: "org",
         control: {
           kind: "select",
           value: "1m",
@@ -1854,8 +1971,9 @@ const SETTINGS_DATA: SettingsCategory[] = [
       {
         id: "confirm-delete",
         label: "Confirm before delete",
-        helper: "Adds a confirm step when removing markers, walls, or layouts.",
+        helper: "Destructive-action guardrail. Org policy so editors get the same safety net.",
         source: "new",
+        scope: "org",
         control: { kind: "toggle", value: true },
       },
       {
@@ -1863,6 +1981,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Show coverage cones by default",
         helper: "Camera FOV cones render on every Place open.",
         source: "new",
+        scope: "user",
         control: { kind: "toggle", value: false },
       },
     ],
@@ -1876,8 +1995,9 @@ const SETTINGS_DATA: SettingsCategory[] = [
       {
         id: "default-vis",
         label: "Default device visibility",
-        helper: "Honored when no per-Place override is set.",
+        helper: "What new viewers see on first open. Per-Place overrides are still user-level.",
         source: "new",
+        scope: "org",
         control: {
           kind: "select",
           value: "all",
@@ -1892,8 +2012,9 @@ const SETTINGS_DATA: SettingsCategory[] = [
       {
         id: "default-overlay",
         label: "Default data overlay",
-        helper: "Mirrors the bottom-left Layers cluster.",
+        helper: "Starting overlay (alerts, coverage, health). Sets the org's \u201chouse view\u201d on open.",
         source: "new",
+        scope: "org",
         control: {
           kind: "select",
           value: "none",
@@ -1911,6 +2032,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Show device labels at low zoom",
         helper: "Adds device names to markers when zoomed out. Off keeps the map clean.",
         source: "google-maps",
+        scope: "user",
         control: { kind: "toggle", value: false },
       },
       {
@@ -1918,6 +2040,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Color devices by status",
         helper: "Online green, degraded amber, offline red. Off uses brand colors.",
         source: "new",
+        scope: "user",
         control: { kind: "toggle", value: true },
       },
     ],
@@ -1933,6 +2056,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Default alert filter",
         helper: "Honored when you open the alerts cluster.",
         source: "new",
+        scope: "user",
         control: {
           kind: "select",
           value: "unack",
@@ -1949,6 +2073,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Sound on new alert",
         helper: "Plays a short chime when a new alert lands while Command is open.",
         source: "google-maps",
+        scope: "user",
         control: { kind: "toggle", value: false },
       },
       {
@@ -1956,6 +2081,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Auto-zoom to new alert",
         helper: "Pans the map to a new critical alert when one fires.",
         source: "new",
+        scope: "user",
         control: { kind: "toggle", value: false },
       },
     ],
@@ -1969,15 +2095,17 @@ const SETTINGS_DATA: SettingsCategory[] = [
       {
         id: "show-pricing",
         label: "Show pricing",
-        helper: "MSRP throughout the editor and exports. Off hides it everywhere.",
+        helper: "MSRP visibility is an org-wide policy. Some orgs hide it from non-admin viewers.",
         source: "site-planner",
+        scope: "org",
         control: { kind: "toggle", value: true },
       },
       {
         id: "default-share-scope",
         label: "Default share scope",
-        helper: "Initial value of the share dialog. Can be overridden per share.",
+        helper: "Org policy for the share dialog's starting value. Per-share override is user-level.",
         source: "new",
+        scope: "org",
         control: {
           kind: "select",
           value: "site",
@@ -1991,8 +2119,9 @@ const SETTINGS_DATA: SettingsCategory[] = [
       {
         id: "watermark",
         label: "Watermark exported floorplans",
-        helper: "Stamps org name and \u201cVerkada confidential\u201d on PDF exports.",
+        helper: "Stamps org name and \u201cVerkada confidential\u201d on PDF exports. Org branding decision.",
         source: "new",
+        scope: "org",
         control: { kind: "toggle", value: true },
       },
     ],
@@ -2008,6 +2137,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "High-contrast mode",
         helper: "Boosts foreground / background contrast on all chrome.",
         source: "new",
+        scope: "user",
         control: { kind: "toggle", value: false },
       },
       {
@@ -2015,6 +2145,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Reduce motion",
         helper: "Honors prefers-reduced-motion. Disables map fly-to and panel slide animations.",
         source: "google-maps",
+        scope: "user",
         control: { kind: "toggle", value: false },
       },
       {
@@ -2022,6 +2153,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Larger touch targets",
         helper: "Adds padding to all buttons and rail items. Useful on touch and assistive devices.",
         source: "new",
+        scope: "user",
         control: { kind: "toggle", value: false },
       },
       {
@@ -2029,6 +2161,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Keyboard-first focus rings",
         helper: "Bright focus rings on every interactive element when tabbing.",
         source: "new",
+        scope: "user",
         control: { kind: "toggle", value: true },
       },
     ],
@@ -2044,6 +2177,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Language",
         helper: "Falls back to English when a string is untranslated.",
         source: "google-maps",
+        scope: "user",
         control: {
           kind: "select",
           value: "en-US",
@@ -2062,6 +2196,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Time format",
         helper: "Applies to all timestamps in Command.",
         source: "new",
+        scope: "user",
         control: {
           kind: "select",
           value: "12h",
@@ -2076,6 +2211,7 @@ const SETTINGS_DATA: SettingsCategory[] = [
         label: "Distance &amp; area units",
         helper: "Drives all readouts outside the editor. Editor unit is separate.",
         source: "site-planner",
+        scope: "user",
         control: {
           kind: "select",
           value: "imperial",
@@ -2090,18 +2226,42 @@ const SETTINGS_DATA: SettingsCategory[] = [
 ]
 
 function SettingRowView({
-  row, value, onChange,
+  row, value, onChange, locked,
 }: {
   row: SettingRow
   value: boolean | string
   onChange: (v: boolean | string) => void
+  /** When true, the row is rendered read-only (org-scope setting, viewer is not Maps Admin). */
+  locked: boolean
 }) {
   return (
     <div className="py-3 first:pt-1 border-b border-border/40 last:border-0">
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[12px] font-semibold">{row.label.replace(/&amp;/g, "&")}</span>
+            <span className={cn("text-[12px] font-semibold", locked && "text-muted-foreground")}>
+              {row.label.replace(/&amp;/g, "&")}
+            </span>
+            {/* Scope badge */}
+            <span
+              className={cn(
+                "text-[9px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded border inline-flex items-center gap-1",
+                row.scope === "org"
+                  ? "border-violet-500/40 text-violet-300 bg-violet-500/10"
+                  : "border-border text-muted-foreground bg-muted/30",
+              )}
+              title={row.scope === "org" ? "Org-scope setting. Maps Admins set this for everyone." : "User-scope setting. Each user sets this for themselves."}
+            >
+              {row.scope === "org" ? (
+                <>
+                  <span className="text-[10px] leading-none">⌂</span>
+                  Org · Admin
+                </>
+              ) : (
+                <>User</>
+              )}
+            </span>
+            {/* Origin badge */}
             {row.source && (
               <span
                 className={cn(
@@ -2114,6 +2274,15 @@ function SettingRowView({
                 {row.source === "site-planner" ? "Site Planner" : row.source === "google-maps" ? "Google Maps" : "New"}
               </span>
             )}
+            {locked && (
+              <span
+                className="text-[9px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded border border-border bg-muted/40 text-muted-foreground inline-flex items-center gap-1"
+                title="You need Maps Admin to change this."
+              >
+                <span className="text-[10px] leading-none">🔒</span>
+                Locked
+              </span>
+            )}
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{row.helper}</div>
         </div>
@@ -2121,12 +2290,14 @@ function SettingRowView({
           {row.control.kind === "toggle" ? (
             <button
               type="button"
+              disabled={locked}
               onClick={() => onChange(!(value as boolean))}
               role="switch"
               aria-checked={value as boolean}
               className={cn(
                 "relative w-10 h-5 rounded-full transition-colors",
                 value ? "bg-sky-500" : "bg-muted",
+                locked && "opacity-50 cursor-not-allowed",
               )}
             >
               <span
@@ -2139,8 +2310,12 @@ function SettingRowView({
           ) : (
             <select
               value={value as string}
+              disabled={locked}
               onChange={e => onChange(e.target.value)}
-              className="rounded-md border border-border bg-card/80 px-2 py-1 text-[11px] focus:outline-none focus:ring-2 focus:ring-sky-500/40 max-w-[180px]"
+              className={cn(
+                "rounded-md border border-border bg-card/80 px-2 py-1 text-[11px] focus:outline-none focus:ring-2 focus:ring-sky-500/40 max-w-[180px]",
+                locked && "opacity-50 cursor-not-allowed",
+              )}
             >
               {row.control.options.map(o => (
                 <option key={o.id} value={o.id}>{o.label}</option>
@@ -2153,8 +2328,15 @@ function SettingRowView({
   )
 }
 
-function SettingsModal({ onClose }: { onClose: () => void }) {
+function SettingsModal({
+  onClose, isAdmin, onToggleAdmin,
+}: {
+  onClose: () => void
+  isAdmin: boolean
+  onToggleAdmin: () => void
+}) {
   const [activeCat, setActiveCat] = useState<SettingsCategoryId>(SETTINGS_DATA[0].id)
+  const [scopeFilter, setScopeFilter] = useState<"all" | "user" | "org">("all")
   const [values, setValues] = useState<Record<string, boolean | string>>(() => {
     const v: Record<string, boolean | string> = {}
     SETTINGS_DATA.forEach(cat => cat.rows.forEach(r => {
@@ -2172,7 +2354,14 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
   }
 
   const cat = SETTINGS_DATA.find(c => c.id === activeCat)!
+  const passesScope = (r: SettingRow) =>
+    scopeFilter === "all" || scopeFilter === r.scope
+  const filteredRows = cat.rows.filter(passesScope)
   const totalRows = SETTINGS_DATA.reduce((n, c) => n + c.rows.length, 0)
+  const orgCount = SETTINGS_DATA.reduce(
+    (n, c) => n + c.rows.filter(r => r.scope === "org").length, 0
+  )
+  const userCount = totalRows - orgCount
 
   return (
     <div className="absolute inset-0 z-50 bg-black/55 flex items-center justify-center p-4" onClick={onClose}>
@@ -2180,10 +2369,47 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
         className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-3xl max-h-full overflow-hidden flex flex-col"
         onClick={e => e.stopPropagation()}
       >
-        <div className="px-4 py-3 border-b border-border/50 flex items-center gap-2">
+        <div className="px-4 py-3 border-b border-border/50 flex items-center gap-2 flex-wrap">
           <span className="text-sm font-semibold">Settings</span>
-          <span className="text-[11px] text-muted-foreground">{totalRows} preferences across {SETTINGS_DATA.length} categories</span>
-          <button onClick={onClose} className="ml-auto">
+          <span className="text-[11px] text-muted-foreground">
+            {userCount} user &middot; {orgCount} org &middot; {SETTINGS_DATA.length} categories
+          </span>
+          {/* Scope filter */}
+          <div className="ml-2 inline-flex items-center rounded-md border border-border bg-muted/20 p-0.5">
+            {([
+              ["all", `All (${totalRows})`],
+              ["user", `User (${userCount})`],
+              ["org", `Org admin (${orgCount})`],
+            ] as const).map(([k, label]) => (
+              <button
+                key={k}
+                onClick={() => setScopeFilter(k)}
+                className={cn(
+                  "px-2 py-0.5 text-[10px] rounded font-medium transition-colors",
+                  scopeFilter === k
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {/* Admin-mode demo toggle (so reviewers can see locked vs unlocked) */}
+          <button
+            onClick={onToggleAdmin}
+            title="Toggle Maps Admin (demo only)"
+            className={cn(
+              "ml-auto inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-medium transition-colors",
+              isAdmin
+                ? "border-amber-500/40 bg-amber-500/15 text-amber-200"
+                : "border-border bg-muted/30 text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <span className="text-[11px] leading-none">{isAdmin ? "★" : "☆"}</span>
+            {isAdmin ? "Maps Admin" : "Maps Viewer"}
+          </button>
+          <button onClick={onClose}>
             <Pill size="sm">✕</Pill>
           </button>
         </div>
@@ -2194,6 +2420,7 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
             <ul className="flex flex-col gap-0.5">
               {SETTINGS_DATA.map(c => {
                 const isActive = c.id === activeCat
+                const catCount = c.rows.filter(passesScope).length
                 return (
                   <li key={c.id}>
                     <button
@@ -2203,13 +2430,14 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
                         isActive
                           ? "bg-sky-500/15 text-sky-100 border border-sky-500/40"
                           : "border border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+                        catCount === 0 && "opacity-40",
                       )}
                     >
                       <span className={cn("text-sm leading-none", isActive ? "text-sky-300" : "text-muted-foreground/70")}>
                         {c.glyph}
                       </span>
                       <span className="truncate">{c.label}</span>
-                      <span className="ml-auto text-[10px] text-muted-foreground/60">{c.rows.length}</span>
+                      <span className="ml-auto text-[10px] text-muted-foreground/60">{catCount}</span>
                     </button>
                   </li>
                 )
@@ -2222,24 +2450,38 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
             <div className="mb-3">
               <h3 className="text-sm font-semibold">{cat.label.replace(/&amp;/g, "&")}</h3>
               <p className="text-[11px] text-muted-foreground mt-0.5">{cat.helper}</p>
+              {!isAdmin && cat.rows.some(r => r.scope === "org") && (
+                <p className="text-[10px] text-amber-300/90 mt-1.5 flex items-center gap-1">
+                  <span>🔒</span>
+                  Org-scope settings in this category are read-only. Ask a Maps Admin to change them.
+                </p>
+              )}
             </div>
             <div className="flex flex-col">
-              {cat.rows.map(row => (
-                <SettingRowView
-                  key={row.id}
-                  row={row}
-                  value={values[row.id]}
-                  onChange={v => setValues(prev => ({ ...prev, [row.id]: v }))}
-                />
-              ))}
+              {filteredRows.length === 0 ? (
+                <div className="text-[11px] text-muted-foreground italic py-6 text-center">
+                  No {scopeFilter === "user" ? "user-scope" : "org-scope"} settings in this category.
+                </div>
+              ) : (
+                filteredRows.map(row => (
+                  <SettingRowView
+                    key={row.id}
+                    row={row}
+                    value={values[row.id]}
+                    onChange={v => setValues(prev => ({ ...prev, [row.id]: v }))}
+                    locked={row.scope === "org" && !isAdmin}
+                  />
+                ))
+              )}
             </div>
           </div>
         </div>
 
-        <div className="px-4 py-3 border-t border-border/50 flex items-center gap-2">
-          <span className="text-[10px] text-muted-foreground">
-            Legend:
-          </span>
+        <div className="px-4 py-3 border-t border-border/50 flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] text-muted-foreground">Scope:</span>
+          <span className="text-[9px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded border border-border text-muted-foreground bg-muted/30">User</span>
+          <span className="text-[9px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded border border-violet-500/40 text-violet-300 bg-violet-500/10">Org · Admin</span>
+          <span className="text-[10px] text-muted-foreground ml-2">Origin:</span>
           <span className="text-[9px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded border border-sky-500/40 text-sky-300 bg-sky-500/10">Site Planner</span>
           <span className="text-[9px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded border border-emerald-500/40 text-emerald-300 bg-emerald-500/10">Google Maps</span>
           <span className="text-[9px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded border border-amber-500/40 text-amber-300 bg-amber-500/10">New</span>
@@ -2258,18 +2500,6 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>
-  )
-}
-
-function SettingsCogButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      title="Settings"
-      className="absolute top-3.5 left-14 z-30 size-9 rounded-md bg-card/95 border border-border flex items-center justify-center text-base hover:bg-card transition-colors"
-    >
-      ⚙
-    </button>
   )
 }
 
@@ -2906,6 +3136,8 @@ export function MockPrototype() {
   const [hotkeysOpen, setHotkeysOpen] = useState(false)
   const [editorDirty] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(true)
 
   const navTrail = navStackIds.map(id => findNode(id)).filter((n): n is SpatialNode => Boolean(n))
   const currentNode = navTrail[navTrail.length - 1]
@@ -3008,6 +3240,23 @@ export function MockPrototype() {
     if (next === "collection-detail") {
       setRailOpen(true); setActiveRail("collections"); setSearchFocused(false); setPlaceOpen(false); setSitePickerOpen(false)
       if (!activeCollection) setActiveCollection(COLLECTIONS[0].id)
+    }
+    if (next === "editor-entry") {
+      // Pre-editor handoff: Place card visible, Open-in-Editor pulse highlighted.
+      // Demonstrates that editor entry is gated on a selected Place.
+      setRailOpen(false); setActiveRail(null); setSearchFocused(false)
+      setPlaceOpen(true); setLayersOpen(true); setSitePickerOpen(false)
+      setSettingsOpen(false); setAccountMenuOpen(false)
+    }
+    if (next === "settings-open") {
+      // Settings is a modal layered over the viewer. We park the chrome
+      // in a neutral viewer state so reviewers see how to dismiss back to.
+      setRailOpen(false); setActiveRail(null); setSearchFocused(false); setPlaceOpen(false); setSitePickerOpen(false)
+      setSettingsOpen(true)
+    } else {
+      // Any other variant change closes settings, so jumping between states
+      // doesn't leave the modal lingering.
+      if (next !== "editor") setSettingsOpen(false)
     }
     if (next === "locations-flyout" || next === "collections-flyout") {
       setNavStackIds([])
@@ -3165,20 +3414,57 @@ export function MockPrototype() {
 
           {flyTarget && <FlyToBanner target={flyTarget} onDismiss={() => setFlyTarget("")} />}
 
-          {!railOpen && !inEditor && (
-            <>
-              <HamburgerButton
-                onClick={() => {
-                  setRailOpen(true)
-                  setVariantRaw("rail-expanded")
-                }}
-              />
-              <SettingsCogButton onClick={() => setSettingsOpen(true)} />
-            </>
+          {/* Viewer -> Editor handoff banner: a transient explanation of how
+              you cross the editor boundary, anchored above the Place card. */}
+          {variant === "editor-entry" && (
+            <div
+              className="absolute z-30 left-1/2 -translate-x-1/2 bg-card/95 border border-amber-400/50 ring-2 ring-amber-400/30 rounded-lg px-3 py-2 shadow-xl flex items-center gap-2"
+              style={{ top: 14 }}
+            >
+              <span className="text-amber-200 text-sm">→</span>
+              <div className="flex flex-col">
+                <span className="text-[12px] font-semibold text-amber-100">Entering Editor mode</span>
+                <span className="text-[10px] text-muted-foreground leading-snug">
+                  Editor is scoped to <span className="text-foreground">Floor 3</span>. Click the pulsing &ldquo;Open in Editor&rdquo; button to confirm.
+                </span>
+              </div>
+              <button
+                onClick={() => setVariant("editor")}
+                className="ml-2 rounded-md border border-amber-400/40 bg-amber-400/15 hover:bg-amber-400/25 text-amber-100 px-2 py-0.5 text-[11px] font-medium transition-colors"
+              >
+                Enter editor
+              </button>
+              <button
+                onClick={() => setVariant("place-selected")}
+                title="Cancel"
+                className="rounded-md border border-border bg-muted/40 hover:bg-muted/60 px-2 py-0.5 text-[11px] text-muted-foreground transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
           )}
 
-          {/* Settings modal: reachable from chrome cog (viewer) and editor toolbelt */}
-          {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+          {!railOpen && !inEditor && (
+            <HamburgerButton
+              onClick={() => {
+                setRailOpen(true)
+                setVariantRaw("rail-expanded")
+              }}
+            />
+          )}
+
+          {/* Settings modal: reachable from viewer Account avatar menu, viewer rail
+              footer (Settings item), and editor toolbelt (gear). */}
+          {settingsOpen && (
+            <SettingsModal
+              onClose={() => {
+                setSettingsOpen(false)
+                if (variant === "settings-open") setVariantRaw("null-state")
+              }}
+              isAdmin={isAdmin}
+              onToggleAdmin={() => setIsAdmin(!isAdmin)}
+            />
+          )}
 
           {railOpen && (
             <FloatingRail
@@ -3316,6 +3602,15 @@ export function MockPrototype() {
           )}
 
           {showAlerts && (
+            <AccountAvatarMenu
+              open={accountMenuOpen}
+              onToggle={() => setAccountMenuOpen(!accountMenuOpen)}
+              onOpenSettings={() => setSettingsOpen(true)}
+              onOpenHelp={() => setHotkeysOpen(true)}
+            />
+          )}
+
+          {showAlerts && (
             <SiteAlertsCluster
               siteScope={siteScope}
               placeCount={SITE_PLACE_COUNTS[siteScope] ?? 0}
@@ -3353,7 +3648,7 @@ export function MockPrototype() {
 
           {showZoom && <FloatingZoom />}
 
-          {(placeOpen && (variant === "place-selected" || variant === "place-with-drop")) && (
+          {(placeOpen && (variant === "place-selected" || variant === "place-with-drop" || variant === "editor-entry")) && (
             <FloatingPlaceCard
               tab={placeTab}
               onChangeTab={setPlaceTab}
@@ -3361,11 +3656,21 @@ export function MockPrototype() {
                 setPlaceOpen(false)
                 setVariantRaw("null-state")
               }}
-              onOpenInEditor={() => setVariant("editor")}
+              onOpenInEditor={() => {
+                // When already in the handoff state (editor-entry), the
+                // button enters editor for real. Otherwise it first shows
+                // the handoff so the transition is observable.
+                if (variant === "editor-entry") {
+                  setVariant("editor")
+                } else {
+                  setVariant("editor-entry")
+                }
+              }}
               showDragHint={variant === "place-selected" && !filesEverOpened}
               onSimulateDragOver={() => setVariant("place-with-drop")}
               focusLabel={currentNode ? breadcrumbText() : "HQ › Main Bldg › Floor 3"}
               focusKind={currentNode ? currentNode.kind : "Floor"}
+              pulseEditor={variant === "editor-entry"}
               leftOffset={
                 activeRail
                   ? flyoutLeft + flyoutWidth + railGap
@@ -3414,9 +3719,10 @@ export function MockPrototype() {
                 collapsed={editorAsideCollapsed}
                 onToggleCollapsed={() => setEditorAsideCollapsed(!editorAsideCollapsed)}
               />
-              {hotkeysOpen && <HotkeysModal onClose={() => setHotkeysOpen(false)} />}
             </>
           )}
+
+          {hotkeysOpen && <HotkeysModal onClose={() => setHotkeysOpen(false)} />}
 
           {sitePickerOpen && (
             <SitePicker
@@ -3457,8 +3763,14 @@ export function MockPrototype() {
             {variant === "place-selected" && (
               <p>A Place is selected. Place card pinned bottom-left over the map. The floating search box collapsed to a magnifier icon to give the Place card and map more breathing room.</p>
             )}
+            {variant === "editor-entry" && (
+              <p><strong>Viewer &rarr; Editor handoff.</strong> The user clicked &ldquo;Open in Editor&rdquo; on a Place card. Instead of jumping straight into editor chrome, we surface a transient confirmation: the button pulses, a banner names the scope (&ldquo;Floor 3&rdquo;), and the user picks Enter editor or Cancel. This makes the boundary crossing observable and reversible. It also enforces the rule that <em>editor is always scoped to one Place</em>; there is no other way in.</p>
+            )}
+            {variant === "settings-open" && (
+              <p><strong>Settings is its own state.</strong> Modal layered over Viewer. Categories on the left, settings on the right, with a scope tab row (All / User / Org admin). Every row is double-tagged with its <em>scope</em> (User vs Org &middot; Admin, mirroring Site Planner&apos;s <code>lockedByOrg</code>) and its <em>origin</em> (Site Planner / Google Maps / New). Toggle the &ldquo;Maps Admin&rdquo; pill in the modal header to demo locked vs unlocked rows. Reached from: the <strong>Account avatar</strong> in the top-right (viewer), the <strong>Settings item</strong> at the bottom of the rail (viewer), and the <strong>gear button</strong> in the editor toolbelt.</p>
+            )}
             {variant === "editor" && (
-              <p><strong>Editor is scoped to one Place.</strong> You can only enter from the Place card's &ldquo;Open in Editor&rdquo; button, so the editor always knows which Floor / Area it&apos;s editing. The viewer rail, alerts cluster, and search are hidden. New chrome: a top center bar with breadcrumb + undo/redo + save status + exit, a left toolbelt with category buttons (Devices, Architecture, Annotations, Layouts, Measure, Share, Settings, Help) modeled on Site Planner's ProductMenu, and a right selection aside that shows BOM by default and switches to a marker detail card when a device is picked. Press the &ldquo;?&rdquo; button at the bottom of the toolbelt for the full hotkey reference, or &ldquo;\u2699&rdquo; for the full settings modal.</p>
+              <p><strong>Editor is scoped to one Place.</strong> Entry is gated: from any Place card click &ldquo;Open in Editor&rdquo; to land in the <strong>Viewer &rarr; Editor handoff</strong> state (variant H), which pulses the primary button and shows what scope you&apos;re about to commit to. Confirm to enter, cancel to stay in Viewer. The viewer rail, alerts cluster, search, and account avatar are hidden in editor. New chrome: a top center bar with breadcrumb + undo/redo + save status + exit, a left toolbelt with category buttons (Devices, Architecture, Annotations, Layouts, Measure, Share, Settings, Help) modeled on Site Planner&apos;s ProductMenu, and a right selection aside that shows BOM by default and switches to a marker detail card when a device is picked. Press the &ldquo;?&rdquo; button at the bottom of the toolbelt for the full hotkey reference, or &ldquo;\u2699&rdquo; for the full settings modal.</p>
             )}
             {variant === "search-active" && (
               <p>Search has focus. Results dropdown shows places, devices, entities, and collections as a single results list. The Site scope chip below the input is read-only context.</p>
